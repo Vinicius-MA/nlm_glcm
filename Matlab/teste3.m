@@ -5,25 +5,37 @@ clc
 sigma = 25;
 v = (sigma/(2.^8-1)).^2;
 
-I = rgb2gray(imread('HW_C001_000.jpg'));
+I = rgb2gray(imread('x.jpg'));
 In = imnoise(I, 'gaussian', 0, v);
 
 I = double(I)/max(double(I(:)));
 In = double(In)/max(double(In(:)));
+
+SP=[-1 -1; -1 0; -1 1; 0 -1; -0 1; 1 -1; 1 0; 1 1];
+I_lbp = lbp(In,SP,0,'i');
+I_lbp = double(I_lbp)/256;
 
 d = 10;
 s = 6.0;
 h = v^0.5;
 f = @(x1, x2) (x1 - x2).^2;
 
-Y = nlm_lbp(I, In, d, s, h);
-%Y2 = nlmfilter(In, d, s, f, h);
+k = 1;
+
+Y(k,:,:) = I; tit(k, :) = 'noisy'; k = k+1;
+%Y(k,:,:) = nlm_lbp(I, In, d, s, h); tit(k, :) = 'nlm_lbp' k = k + 1;
+%Y(k,:,:) = nlm(I, In, d, s, h); tit(k, :) = 'nlm'; k = k+1;
+%Y(k,:,:) = nlmfilter(In, d, s, f, h); tit(k, :) = 'nlmfilter'; k = k+1;
+Y(k,:,:) = nlm_lbp_andre( In, d, s, h); tit(k, :) = 'lnm_lbp_andre'; k = k+1;
+%[~, Y(k,:,:)] = nlm_lbp(I, In, d, s, h); tit(k, :) = 'nlm_lbp'; k = k+1;
+
+K = uint8( size(Y, 1) );
+
+L1 = idivide( K, 2) ;
+L2 = idivide( K, 2) + rem(K, 2);
 
 figure,
-subplot(2,2,1), imshow(I), title('Original');
-subplot(2,2,2), imshow(In), title('Noisy');
-subplot(2,2,3), imshow(Y), title('NLM');
-%subplot(2,2,4), imshow(Y2), title('NLM-André');
-
-psnr_n = psnr(In, I);
-psnr_nlm = psnr(Y, I);
+for n = 1: k-1
+    subplot(L1, L2, n), imshow( Y(k,:,:) ), title( tit(k,:) );
+    psnr(n) = psnr( Y(k,:,:), I);
+end
