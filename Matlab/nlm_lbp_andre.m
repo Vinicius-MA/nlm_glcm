@@ -53,12 +53,13 @@ patch_lnm = @(dx,dy) P1_nlm(x+dx,y+dy,:,:);
 
 patch_lbp = @(dx, dy) P1_lbp(x+dx, y+dy);
 
+start_tic = tic;
 
 for dx = -d:d
 for dy = -d:d
     
     %% LOOP PRINCIPAL
-    tic
+    loop_tic = tic;
     
 	% pular o deslocamento dx,dy = (0,0) (não comparar o patch central com ele mesmo)
     if (dx ~= 0 || dy ~= 0)
@@ -97,7 +98,7 @@ for dy = -d:d
         % atualiza a imagem de saida com o peso dos patches do deslocamento atual
         u = u + (wxy_nlm .* wxy_lbp ) .* vxy_nlm;
         
-        t = toc;    
+        t = toc(loop_tic);    
         fprintf('pixel (%d, %d) of (%d, %d)  processed in %.03f\r\n', dx, dy, 2*d+1, 2*d+1, t);
         
         
@@ -123,9 +124,15 @@ w_lbp = w_lbp + z_lbp;
 % normaliza os valores obtidos com a soma dos pesos
 u = u./w_lbp;
 
+end_toc = toc(start_tic);
+fprintf('Total time: %.03f\r\n', end_toc);
+
 end
 
 function [d] = f_lbp(P1, P2)
+
+P1 = uint8( P1 );
+P2 = uint8( P2 );
 
 m = size(P1, 1) ;
 n = size( P1, 2 );
