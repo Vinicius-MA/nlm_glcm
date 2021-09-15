@@ -36,11 +36,12 @@ P1_nlm = padarray(P_nlm, [d d 0 0], 'symmetric');
 w_lbp = zeros([m n]);
 % matriz dos pesos maximos
 z_lbp = zeros([m n]);
+% matris de suavização de regiões
+% hSi como matriz
 % matriz de patches
 P_lbp = im2patch(v, s);
 
 % replicar bordas das matrizes da imagem e de patch
-v1_lbp = padarray(v, [d d], 'symmetric');
 P1_lbp = padarray(P_nlm, [d d 0 0], 'symmetric');
 
 %%
@@ -143,7 +144,7 @@ for i=1:m
     for j = 1:n
         
         H1 = imhist( P1(i, j, :, :) );
-        H2 = imhist( P2(i, j, :, :) );
+        H2 = imhist( P2(i, j) );
         
         d(i, j) = sum( (H1 - H2).^2 ./ (H1 + H2+0.00001) );
     
