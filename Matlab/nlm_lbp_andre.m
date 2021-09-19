@@ -42,7 +42,7 @@ z_lbp = zeros([m n]);
 P_lbp = im2patch(v, s);
 
 % replicar bordas das matrizes da imagem e de patch
-P1_lbp = padarray(P_nlm, [d d 0 0], 'symmetric');
+P1_lbp = padarray(P_lbp, [d d 0 0], 'symmetric');
 
 %%
 % offset das bordas
@@ -52,7 +52,7 @@ x = (1:m) + d;	y = (1:n) + d;
 image_nlm = @(dx,dy) v1_nlm(x+dx,y+dy);
 patch_lnm = @(dx,dy) P1_nlm(x+dx,y+dy,:,:);
 
-patch_lbp = @(dx, dy) P1_lbp(x+dx, y+dy);
+patch_lbp = @(dx, dy) P1_lbp(x+dx, y+dy, :, :);
 
 start_tic = tic;
 
@@ -144,7 +144,7 @@ for i=1:m
     for j = 1:n
         
         H1 = imhist( P1(i, j, :, :) );
-        H2 = imhist( P2(i, j) );
+        H2 = imhist( P2(i, j, :, :) );
         
         d(i, j) = sum( (H1 - H2).^2 ./ (H1 + H2+0.00001) );
     
