@@ -5,7 +5,7 @@ clc
 sigma = 25;
 v = (sigma/(2.^8-1)).^2;
 
-I = rgb2gray(imread('x.jpg'));
+I = rgb2gray(imread('original.jpg'));
 In = imnoise(I, 'gaussian', 0, v);
 
 I = double(I)/max(double(I(:)));
