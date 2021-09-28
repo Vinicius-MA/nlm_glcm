@@ -1,3 +1,7 @@
+"""
+    Credits: Gregory Petterson Zanelato <gregory.zanelato@usp.br>
+"""
+
 import numpy as np
 import math
 import numba

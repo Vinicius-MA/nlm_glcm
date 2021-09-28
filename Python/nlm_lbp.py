@@ -1,3 +1,7 @@
+"""
+    Credits: Gregory Petterson Zanelato <gregory.zanelato@usp.br>
+"""
+
 import numpy as np
 from numba import njit
 from scipy.special import expit
@@ -129,10 +133,10 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
                 output[i,j] = input[i,j]
     return output
 
-file_name = '../barbara.png'
+file_name = '../original.jpg'
 std = 25
 
-img =  io.imread(file_name)
+img =  ( 255 * io.imread(file_name, as_gray=True) ).astype(np.uint8)
 noisy = add_gaussian_noise(img, 0, std)
 psnr_noisy = psnr(img, noisy)
 ssim_noisy = ssim(img, noisy)
