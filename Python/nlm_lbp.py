@@ -55,12 +55,19 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     w1_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
     w2_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
     
+    print('\tnlm-lbp: total ', y,',',x)
+
     #Initialing histogram distance vector (LBP)
     n_bins = lbp_n_points+2
     h_li =  np.zeros((n_bins,), dtype = np.float64)
     h_lj =  np.zeros((n_bins,), dtype = np.float64)
+    
     for i in range(y):
+
+        print('\t\tline ',i, ' out of ', y)
+
         for j in range(x):
+
             offset_y = i + patch_radius
             offset_x = j + patch_radius
             
