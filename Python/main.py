@@ -2,12 +2,22 @@ from noise_sampling import *
 
 def main():
 
-    filename = 'HW_C001_120.jpg'
+    indexes = [1, 2, 4, 9, 11, 12, 13, 15, 16, 17, 19, 24]
+    sigmas = [10,25]
     
-    baseImage = BaseImage( f'{filename}', [10, 25, 50], folder='Banco de Imagens/')
-    baseImage.generate_noisy_samples(folder='Python/resultados/')
-    baseImage.generate_nlmLbp_samples(folder='Python/resultados/')
-    baseImage.generate_spreadsheet()
+    imageInFolder = 'Banco de Imagens/'
+    imageOutFolder = 'Python/obtidas/'
+    spreadsheetFolder = 'Python/resultados/'
+
+    filenames = [f'HW_C{x:#03d}_120.jpg' for x in indexes]
+
+    for fname in filenames:
+    
+        baseImage = BaseImage( f'{fname}', sigmas, folder=imageInFolder)
+
+        baseImage.generate_noisy_samples(folder = imageOutFolder)
+        baseImage.generate_nlmLbp_samples(folder = imageOutFolder)
+        baseImage.generate_spreadsheet( folder = spreadsheetFolder)
 
 
 if __name__ == "__main__":
