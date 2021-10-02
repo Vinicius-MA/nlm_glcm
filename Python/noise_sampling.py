@@ -4,17 +4,18 @@ import nlm_lbp as nlmlbp
 import utils
 import openpyxl as xl
 import statistics
+from os.path import exists
 
 NOISY_OUT_FNAME = "noisy"
 NLMLBP_OUT_FNAME = "nlmlbp"
+TERMINAL_OUT_CREATED_FILE = "created"
+TERMINAL_OUT_OPENED_FILE = "opened"
 SPREADSHEET_HEADER = [ "Rows", "Noisy", "NLM-LBP" ]
-SPREADSHEET_MEDIA = ["Média"]
+SPREADSHEET_MEDIA = "Média"
 
 class BaseImage:
 
-    def __init__(self, filename, sigmaList, samples=10, folder=''):
-
-        print(f'{filename} splitted: {filename.split(".") } ')
+    def __init__(self, filename, sigmaList, samples=10, folder='') :
         
         # Parameters
         self.im_original = None
@@ -56,8 +57,9 @@ class BaseImage:
 
     def open_original(self):
         
-        self.im_original = ( 255 * io.imread( f'{self.folder}{self.filename}.{self.extension}', as_gray=True )
-            ).astype( np.uint8 )
+        self.im_original = _imread( 
+                f'{self.folder}{self.filename}.{self.extension}'
+            )
     
     """ generate_noisy_samples():
             generate both object's noisy images matrix and image file.
@@ -75,21 +77,32 @@ class BaseImage:
 
                 # current noisy image file name
                 fname = get_noisy_sample_filename( f'{self.filename}.{self.extension}', sigma, i+1 )
+                fullFilePath = f'{folder}{fname}'
                 
-                # add Gaussian Noise
-                im_noisy = utils.add_gaussian_noise( self.im_original, mean=0, sigma=sigma )
+                if (  not( exists( fullFilePath )  ) ):
+                    
+                    printStr = TERMINAL_OUT_CREATED_FILE
+                    
+                    # add Gaussian Noise
+                    im_noisy = utils.add_gaussian_noise( self.im_original, mean=0, sigma=sigma )
+
+                    # save to file
+                    io.imsave(folder+fname, im_noisy)                    
+
+                else:
+
+                    printStr = TERMINAL_OUT_OPENED_FILE
+
+                    im_noisy = _imread( fullFilePath )
                 
                 # save to Class object
-                self.noisyImages[k, i, :, :] = im_noisy
-
-                # save to file
-                io.imsave(folder+fname, im_noisy)
+                self.noisyImages[k, i, :, :] = im_noisy                
 
                 # calculate psnr
                 psnr = utils.calculate_psnr( self.im_original, im_noisy )
                 self.psnrNoisy[k, i] = psnr
 
-                print( f">>>> created {folder + fname} - psnr: {psnr:#.03f}" )
+                print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" )
 
     def generate_nlmLbp_samples(self, window_radius = 10, path_radius = 6, 
         lbp_method = 'uniform', lbp_n_points = 16, lbp_radius = 2, folder="" ):
@@ -102,31 +115,48 @@ class BaseImage:
 
             for i in range( self.samples ):
 
-                # current noisy image file name
+                # current processed image file name
                 fname = get_nlmlbp_sample_filename( f'{self.filename}.{self.extension}', sigma, i+1 )
-                
-                # recover Noisy Image
-                im_noisy = self.noisyImages[k, i, :, :]
-                
-                # process current noisy image
-                self.nlmLbpImages[k, i, :, :] = (
-                    nlmlbp.nonlocal_means_lbp_original(
-                        im_noisy, window_radius, path_radius, sigma,
-                        lbp_method, lbp_n_points, lbp_radius
-                    )
-                )
+                fullFilePath = f'{folder}{fname}'
 
-                # save to file
-                io.imsave(folder+fname, self.nlmLbpImages[k, i, :, :] )
+                if( not( exists( fullFilePath) ) ):
+
+                    printStr = TERMINAL_OUT_CREATED_FILE
+
+                    print( f'>>> starting NLM-LBP process for {fullFilePath}')
+                    
+                    # recover Noisy Image
+                    im_noisy = self.noisyImages[k, i, :, :]
+                    
+                    im_proc =  (
+                        nlmlbp.nonlocal_means_lbp_original( im_noisy,
+                            window_radius, path_radius, sigma, lbp_method,
+                            lbp_n_points, lbp_radius
+                        )
+                    )
+
+                    # save to file
+                    io.imsave( fullFilePath, im_proc )
+                    
+                else:
+
+                    printStr = TERMINAL_OUT_OPENED_FILE
+
+                    im_proc = io.imread( fullFilePath )
+                        
+                # save to Class object
+                self.nlmLbpImages[k, i, :, :] = im_proc 
 
                 # calculate psnr
-                psnr = utils.calculate_psnr( self.im_original, im_noisy )
-                self.nlmLbpImages[k, i] = psnr
+                psnr = utils.calculate_psnr( self.im_original, im_proc )
+                self.psnrNlmLbp[k, i] = psnr
 
-                print( f">>>> created {folder + fname} - psnr: {psnr:#.03f}" )
+                print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" )
 
     def generate_spreadsheet(self, fname=None, folder=""):
 
+        print( f'>>>> generate_spreadsheet:')
+        
         if fname is None:
             fname = self.filename
         
@@ -142,26 +172,27 @@ class BaseImage:
             currSheet.append( SPREADSHEET_HEADER )
 
             for row in range(self.samples):
-
-                currRow = [ row, self.psnrNoisy, self.psnrNlmLbp ]
+                
+                currRow = ( row, self.psnrNoisy[k, row], self.psnrNlmLbp[k, row] )
+                
                 currSheet.append( currRow )
+                print( f"\tadded to spreadsheet:\t{currRow}" )
 
-                print( f">>>> added to spreadsheet \n\t{currRow}" )
-            
-            currSheet.append(
-                [
+            # last row is the mean values
+            currRow = (
                     SPREADSHEET_MEDIA,
                     statistics.mean( self.psnrNoisy[k, :] ),
                     statistics.mean( self.psnrNlmLbp[k, :] )
-                ]
-            )
-
-            print( f">>>> added to spreadsheet \n\t{currRow}" )
+                )
+            
+            print( f"\tadded to spreadsheet:\t{currRow}" )
+            
+            currSheet.append( currRow )
 
             outname = f'{folder}{fname}.xlsx'
             workbook.save( outname )
 
-            print( f">>>> file saved: {outname}")
+            print( f">>>> file saved: {folder}{outname}")
 
     def set_filename(self, newfilename):
         
@@ -186,7 +217,17 @@ def get_nlmlbp_sample_filename( filename, sigma, sample ):
 def _get_sample_filename(filename, sigma, sample, endStr="" ):
 
     noisyFilename = filename.replace(".",
-            f"_sigma{ str( sigma ).zfill( 3 ) }_{ str( sample ).zfill( 2 ) }_noisy."
+            f"_sigma{sigma:#03d}_{sample:#02d}_{endStr}."
         )
 
     return noisyFilename
+
+def _imread( fullFilePath ):
+
+    image = io.imread( fullFilePath, as_gray=True )
+
+    if( image.dtype != np.uint8):
+        
+        image = (255 * image).astype( np.uint8 )
+
+    return image
