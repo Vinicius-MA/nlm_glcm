@@ -1,9 +1,9 @@
-from noise_sampling import *
+from noise_sampling import BaseImage
 
 def main():
 
     indexes = [1, 2, 4, 9, 11, 12, 13, 15, 16, 17, 19, 24]
-    sigmas = [10,25]
+    sigmas = [10, 25, 50]
     
     imageInFolder = 'Banco de Imagens/'
     imageOutFolder = 'Python/obtidas/'
