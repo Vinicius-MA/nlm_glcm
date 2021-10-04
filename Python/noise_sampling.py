@@ -41,7 +41,9 @@ class BaseImage:
         )
 
         # Generate Noisy PSNR matrix
-        self.psnrNoisy = np.zeros( [ len(self.sigmaList), self.samples ], dtype=np.float16 )
+        self.psnrNoisy = np.zeros(
+            [ len(self.sigmaList), self.samples ], dtype=np.float64
+        )
 
         ### FOR NLM LBP PROCESSED IMAGES ###
         
@@ -53,7 +55,9 @@ class BaseImage:
         )
 
         # Generate NLM-LBP Processed PSNR matrix
-        self.psnrNlmLbp = np.zeros( [ len(self.sigmaList), self.samples ], dtype=np.float16 )
+        self.psnrNlmLbp = np.zeros(
+            [ len(self.sigmaList), self.samples ], dtype=np.float64
+        )
 
     def open_original(self):
         
