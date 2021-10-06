@@ -6,8 +6,7 @@ def main():
     sigmaList = [10, 25, 50]
     
     imageInFolder = 'Banco de Imagens/'
-    imageInNoisyFolder = 'Matlab/Resultados/Imagens Obtidas/'
-    imageOutFolder = 'Python/obtidas/'
+    imageOutFolder = 'Matlab/Resultados/Imagens Obtidas/'
     spreadsheetFolder = 'Python/resultados/'
 
     filenames = [f'HW_C{x:#03d}_120.jpg' for x in indexes]
@@ -16,7 +15,7 @@ def main():
     
             baseImage = BaseImage( f'{fname}', sigmaList, folder=imageInFolder)
 
-            baseImage.generate_noisy_samples(folder = imageInNoisyFolder, opt='both' )
+            baseImage.generate_noisy_samples(folder = imageOutFolder)
             baseImage.generate_nlmLbp_samples(folder = imageOutFolder)
             baseImage.generate_spreadsheet( folder = spreadsheetFolder)
 
