@@ -6,7 +6,6 @@ import openpyxl as xl
 import statistics
 from os.path import exists
 
-NOISY_IN_FNAME = {"en": "noisy", "pt" : "ruidosa", "both": ["noisy", "ruidosa"]}
 NOISY_OUT_FNAME = "noisy"
 NLMLBP_OUT_FNAME = "nlmlbp"
 TERMINAL_OUT_CREATED_FILE = "created"
@@ -70,7 +69,7 @@ class BaseImage:
             generate both object's noisy images matrix and image file.
             - parameters:
                 folder: name of folder to save images. """    
-    def generate_noisy_samples( self, folder="", opt="en" ) :
+    def generate_noisy_samples( self, folder="" ) :
 
         if ( self.im_original is None ) :
             self.open_original()
@@ -80,39 +79,25 @@ class BaseImage:
 
             for i in range( self.samples ):
 
-                # current noisy image file name(s)
-                fnames = get_noisy_sample_filenames(
-                    f'{self.filename}.{self.extension}', sigma, i+1 , opt=opt
-                )
-                fullFilePaths = [ f'{folder}{fname}' for fname in fnames ]
+                # current noisy image file name
+                fname = get_noisy_sample_filename( f'{self.filename}.{self.extension}', sigma, i+1 )
+                fullFilePath = f'{folder}{fname}'
                 
-                for i, fullFilePath in enumerate(fullFilePaths):
-
-                    # file exists
-                    if( exists( fullFilePath ) ) :
-
-                        fname = fnames[i]
-                        printStr = TERMINAL_OUT_OPENED_FILE
-
-                        im_noisy = _imread( fullFilePath )
-
-                        break;
-
-                # none 'noisy' (nor 'ruidosa') image exists
-                if 'im_noisy' not in locals():
-
+                if (  not( exists( fullFilePath )  ) ):
+                    
                     printStr = TERMINAL_OUT_CREATED_FILE
-
-                    [ fname ] = get_noisy_sample_filenames(
-                        f'{self.filename}.{self.extension}', sigma, i+1
-                    )
-                        
+                    
                     # add Gaussian Noise
                     im_noisy = utils.add_gaussian_noise( self.im_original, mean=0, sigma=sigma )
 
                     # save to file
-                    io.imsave(folder+fname, im_noisy)
+                    io.imsave(folder+fname, im_noisy)                    
 
+                else:
+
+                    printStr = TERMINAL_OUT_OPENED_FILE
+
+                    im_noisy = _imread( fullFilePath )
                 
                 # save to Class object
                 self.noisyImages[k, i, :, :] = im_noisy                
@@ -217,29 +202,8 @@ class BaseImage:
         
         self.filename = newfilename
 
-def get_noisy_sample_filenames(filename, sigma, sample, opt="en"):
-        
-        if opt == "en":
-            
-            return [
-                _get_sample_filename(filename, sigma, sample, NOISY_IN_FNAME["en"] )
-            ]
-        
-        elif opt == "pt":
-
-            return [
-                _get_sample_filename(filename, sigma, sample, NOISY_IN_FNAME["pt"] )
-            ]
-
-        elif opt == "both":
-
-            return [
-                _get_sample_filename(filename, sigma, sample, NOISY_IN_FNAME["en"] ),
-                _get_sample_filename(filename, sigma, sample, NOISY_IN_FNAME["pt"] )
-            ]
-
-        else:
-            return None
+def get_noisy_sample_filename(filename, sigma, sample):
+        return _get_sample_filename(filename, sigma, sample, NOISY_OUT_FNAME )
 
 def get_nlmlbp_sample_filename( filename, sigma, sample ):
     return _get_sample_filename(filename, sigma, sample, NLMLBP_OUT_FNAME )
