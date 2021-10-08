@@ -1,4 +1,5 @@
 from noise_sampling import BaseImage
+import time
 
 def main():
 
@@ -15,9 +16,14 @@ def main():
     
             baseImage = BaseImage( f'{fname}', sigmaList, folder=imageInFolder)
 
+            start = time.time()
             baseImage.generate_noisy_samples(folder = imageOutFolder)
+            diff = time.time() - start
+            
             baseImage.generate_nlmLbp_samples(folder = imageOutFolder)
             baseImage.generate_spreadsheet( folder = spreadsheetFolder)
+
+            print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
 
 
 if __name__ == "__main__":
