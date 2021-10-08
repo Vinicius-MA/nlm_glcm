@@ -64,7 +64,7 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     
     for i in range(y):
 
-        print('\t\tline ',i, ' out of ', y)
+        print('\t\tline ',i+1, ' out of ', y)
 
         for j in range(x):
 
@@ -138,4 +138,5 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
                 output[i,j] = average / sweight
             else:
                 output[i,j] = input[i,j]
+
     return output

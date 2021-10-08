@@ -5,6 +5,7 @@ import utils
 import openpyxl as xl
 import statistics
 from os.path import exists
+import time
 
 NOISY_OUT_FNAME = "noisy"
 NLMLBP_OUT_FNAME = "nlmlbp"
@@ -114,8 +115,12 @@ class BaseImage:
         if ( self.im_original is None ) :
             self.open_original()
 
+        sigma_time = 0
+
         # Generate NLM LBP Images
         for ( k, sigma ) in enumerate( self.sigmaList ) :
+
+            sample_time = 0
 
             for i in range( self.samples ):
 
@@ -131,6 +136,8 @@ class BaseImage:
                     
                     # recover Noisy Image
                     im_noisy = self.noisyImages[k, i, :, :]
+
+                    start_time = time.time()
                     
                     im_proc =  (
                         nlmlbp.nonlocal_means_lbp_original( im_noisy,
@@ -138,6 +145,8 @@ class BaseImage:
                             lbp_n_points, lbp_radius
                         )
                     )
+
+                    diff = time.time() - start_time
 
                     # save to file
                     io.imsave( fullFilePath, im_proc )
@@ -155,7 +164,25 @@ class BaseImage:
                 psnr = utils.calculate_psnr( self.im_original, im_proc )
                 self.psnrNlmLbp[k, i] = psnr
 
+                if 'diff' in locals():
+                    
+                    sample_time += diff
+                    sigma_time += diff
+
+                    print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" + 
+                        f" - time: {diff:#.01f} s ({diff/60:#.01f} min)"
+                    )
+
                 print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" )
+
+
+            print( f'>>>>\ttotal sample time:  {sample_time:#.01f} s' +
+                f' ({sample_time/60:#.01f} min)'
+            )
+
+        print( f'>>>>\ttotal sigma time:  {sigma_time:#.01f} s' +
+                f' ({sigma_time/60:#.01f} min)'
+            )
 
     def generate_spreadsheet(self, fname=None, folder=""):
 
@@ -177,7 +204,7 @@ class BaseImage:
 
             for row in range(self.samples):
                 
-                currRow = ( row, self.psnrNoisy[k, row], self.psnrNlmLbp[k, row] )
+                currRow = ( row+1, self.psnrNoisy[k, row], self.psnrNlmLbp[k, row] )
                 
                 currSheet.append( currRow )
                 print( f"\tadded to spreadsheet:\t{currRow}" )
