@@ -1,23 +1,26 @@
 """
-    Credits: Gregory Petterson Zanelato <gregory.zanelato@usp.br>
+    Credits:
+        Vinícius Moraes Andreghetti <vinicius.andreghetti@usp.br>
+    
+    Thanks to:
+        Gregory Petterson Zanelato <gregory.zanelato@usp.br>
 """
 
 import numpy as np
 from numba import njit
-from scipy.special import expit
-from skimage.feature import local_binary_pattern
 from skimage import io
+
 from utils import *
-from skimage.metrics import structural_similarity as ssim
-from skimage.metrics import peak_signal_noise_ratio as psnr
-from PIL import Image
-import matplotlib.pyplot as plt
-from nonlocal_means import nonlocal_means_original
 
 """ 
-F. Khellah, 'Application of local binary pattern to windowed nonlocal
-means image denoising,' Image Analysis and Processing (Iciap 2013),
-Pt 1, vol. 8156, pp. 21–30, 2013
+
+Improving Non-local Means Image Denoising with Gray-Level 
+Co-Occurrence Matrix and Haralick Features
+
+    Reference:
+        Haralick, RM.; Shanmugam, K., “Textural features for image 
+        classification” IEEE Transactions on systems, man, and cybernetics
+         6 (1973): 610-621. DOI:10.1109/TSMC.1973.4309314
 
 # ------------------------------------------------------------------------
 # Inputs                                           
@@ -31,21 +34,20 @@ Pt 1, vol. 8156, pp. 21–30, 2013
 # ------------------------------------------------------------------------
 """
 
-def nonlocal_means_lbp_original(input, window_radius, patch_radius, h, lbp_method, lbp_n_points, lbp_radius):
-    m,n=input.shape
+def nlm_glcm_filter(image, window_radius, patch_radius, h, distances, angles, levels, symmetric, normed):
+    m,n = image.shape
     output=np.zeros((m,n), dtype = np.uint8)
-    input2 = np.array(np.pad(input,(patch_radius,patch_radius), mode='symmetric'), dtype = np.float64)
+    input2 = np.array(np.pad(image,(patch_radius,patch_radius), mode='symmetric'), dtype = np.float64)
     kernel = make_kernel(patch_radius)
     eps = 10e-7
-    
-    img_lbp = local_binary_pattern(image=input2, P=lbp_n_points, R=lbp_radius, method=lbp_method)
+
     h=h*h
-    output = process(input,input2,kernel,window_radius,patch_radius,h,m,n,img_lbp,eps, lbp_n_points)
+    output = process(image,input2,kernel,window_radius,patch_radius,h,m,n,eps, distances, angles, levels, symmetric, normed)
     return output
 
 
 @njit()
-def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descriptor_img, eps, lbp_n_points):
+def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances, angles, levels, symmetric, normed):
     output=np.zeros((y,x), dtype = np.uint8)
     patch_size = (2*patch_radius)+1
     
@@ -55,25 +57,22 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     w1_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
     w2_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
     
-    #Initialing histogram distance vector (LBP)
-    n_bins = lbp_n_points+2
-    h_li =  np.zeros((n_bins,), dtype = np.float64)
-    h_lj =  np.zeros((n_bins,), dtype = np.float64)
     for i in range(y):
+
+        print('\t\tline ',i+1, ' out of ', y)
+
         for j in range(x):
+
+            print('\tcolumn ',j+1, ' out of ', x)
+
             offset_y = i + patch_radius
             offset_x = j + patch_radius
             
             #Get NLM central patch in search window (original image)
-            w1 = input2[offset_y-patch_radius:offset_y+patch_radius+1,offset_x-patch_radius:offset_x+patch_radius+1]
-            
-            #Get LBP central patch in search window (LBP Features image)
-            w1_descriptor = descriptor_img[offset_y-patch_radius:offset_y+patch_radius+1,offset_x-patch_radius:offset_x+patch_radius+1]
-            #Generate Histogram
-            h_li = np.histogram(w1_descriptor, bins=n_bins)[0]
+            w1 = input2[offset_y-patch_radius:offset_y+patch_radius+1,offset_x-patch_radius:offset_x+patch_radius+1]            
 
             #Calculate boundaries    
-            y_min = np.maximum(offset_y-window_radius,patch_radius)
+            y_min = np.maximum(offset_y-window_radius,patch_radius)             # perguntar para Greg de onde surge esses parâmetros
             y_max = np.minimum(offset_y+window_radius+1,y+patch_radius)
             x_min = np.maximum(offset_x-window_radius,patch_radius)
             x_max = np.minimum(offset_x+window_radius+1,x+patch_radius) 
@@ -87,7 +86,11 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
             intensity_weights=np.zeros((patch_samples_size), dtype = np.float64)
             center_patches=np.zeros((patch_samples_size), dtype = np.float64)
             
-            #LBP similarity weight vector - 'w(i,j)LBP'
+            # GLCM and descriptors for central patch
+            glcm1 = graycomatrix(w1, distances, angles, levels=levels, symmetric=symmetric, normed=normed)
+            d1 = graycoprops(glcm1, prop="contrast")
+            
+            #GLCM similarity weight vector - 'w(i,j)GLCM'
             similarity_weights=np.zeros((patch_samples_size), dtype = np.float64)
             
             #Compare central patch with neighbors
@@ -97,7 +100,7 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
                         continue
                     
                     #Get NLM neighbor patch in search window (original image)
-                    w2 = input2[r-patch_radius:r+patch_radius+1 , s-patch_radius:s+patch_radius+1]
+                    w2 = input2[r-patch_radius:r+patch_radius+1 , s-patch_radius:s+patch_radius+1]                    
                     
                     #Calculate NLM distance's weight
                     diff = np.subtract(w1,w2)
@@ -105,20 +108,20 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
                     w = calc_weight(d,h)        
                     intensity_weights[index_element] = w 
                     center_patches[index_element] = input2[r,s]
-
-                    #Get LBP neighbor patch in search window (LBP Features image)
-                    w2_descriptor = descriptor_img[r-patch_radius:r+patch_radius+1 , s-patch_radius:s+patch_radius+1]
-                    #Generate Histogram
-                    h_lj = np.histogram(w2_descriptor, bins=n_bins)[0]
+                    
+                    # GLCM and descriptors for central patch
+                    glcm2 = graycomatrix(w2, distances, angles, levels=levels, symmetric=symmetric, normed=normed)
+                    d2 = graycoprops(glcm2)
                     
                     #Calculate LBP distance's weight [Kellah - Eq.9]
-                    dh = chisquare_distance(h_li,h_lj, eps)
+                    dh = euclidian_distance(d1,d2, eps)
                     similarity_weights[index_element] = dh
                     index_element = index_element + 1 
+
             #Sampled standard deviation of all LBP similarity distances obtained according to [Kellah - Eq.9].               
             hsi = np.std(similarity_weights) + eps
             #LBP Weighting function - [Kellah - Eq.8]           
-            similarity_weights = calc_weight(similarity_weights,hsi)    
+            similarity_weights = calc_weight(similarity_weights,h)    
          
             #NLM max central pixel
             wmax = np.max(intensity_weights)
