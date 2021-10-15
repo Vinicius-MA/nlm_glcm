@@ -2,17 +2,12 @@
     Credits: Gregory Petterson Zanelato <gregory.zanelato@usp.br>
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 from numba import njit
-from scipy.special import expit
 from skimage.feature import local_binary_pattern
-from skimage import io
+
 from utils import *
-from skimage.metrics import structural_similarity as ssim
-from skimage.metrics import peak_signal_noise_ratio as psnr
-from PIL import Image
-import matplotlib.pyplot as plt
-from nonlocal_means import nonlocal_means_original
 
 """ 
 F. Khellah, 'Application of local binary pattern to windowed nonlocal

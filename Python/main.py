@@ -1,5 +1,7 @@
-from noise_sampling import BaseImage
 import time
+
+from noise_sampling import BaseImage
+
 
 def main():
 
