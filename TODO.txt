@@ -1,0 +1,3 @@
+- nlm_glcm_filter
+    debug: erro na linha "process( ... )"
+     -> resolver
