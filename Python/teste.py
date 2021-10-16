@@ -65,8 +65,8 @@ def teste1():
 
 def teste2():
 
-    dists = [5]
-    angles = [0]
+    dists = [5, 10, 12]
+    angles = [0., np.pi/2]
 
     window_radius = 10
     patch_radius = 6
@@ -75,7 +75,7 @@ def teste2():
 
     levels = 256
 
-    image = ( 255 * io.imread( 'Python/original.jpg', as_gray=True ) ).astype( np.uint8 )
+    image = ( 255 * io.imread( 'Python/testes/original.jpg', as_gray=True) ).astype( np.uint8 )
     image_n = add_gaussian_noise( image, sigma=h )
 
     image_out = nlm_glcm_filter( image_n, window_radius, patch_radius, h, dists, angles, levels, False, True )

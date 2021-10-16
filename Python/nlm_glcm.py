@@ -42,12 +42,17 @@ def nlm_glcm_filter(image, window_radius, patch_radius, h, distances, angles, le
     eps = 10e-7
 
     h=h*h
-    output = process(image,input2,kernel,window_radius,patch_radius,h,m,n,eps, distances, angles, levels, symmetric, normed)
+
+    I_prop, J_prop = np.ogrid[0:levels, 0:levels]
+    I_prop = I_prop.astype(np.float64)
+    J_prop = J_prop.astype(np.float64)
+
+    output = process(image,input2,kernel,window_radius,patch_radius,h,m,n,eps, distances, angles, levels, symmetric, normed, I_prop, J_prop)
     return output
 
 
 @njit()
-def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances, angles, levels, symmetric, normed):
+def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances, angles, levels, symmetric, normed, I_prop, J_prop):
     output=np.zeros((y,x), dtype = np.uint8)
     patch_size = (2*patch_radius)+1
     
@@ -88,7 +93,7 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
             
             # GLCM and descriptors for central patch
             glcm1 = graycomatrix(w1, distances, angles, levels=levels, symmetric=symmetric, normed=normed)
-            d1 = graycoprops(glcm1, prop="contrast")
+            d1 = graycoprops(glcm1, I_prop, J_prop, prop="contrast")
             
             #GLCM similarity weight vector - 'w(i,j)GLCM'
             similarity_weights=np.zeros((patch_samples_size), dtype = np.float64)
@@ -111,7 +116,7 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
                     
                     # GLCM and descriptors for central patch
                     glcm2 = graycomatrix(w2, distances, angles, levels=levels, symmetric=symmetric, normed=normed)
-                    d2 = graycoprops(glcm2)
+                    d2 = graycoprops(glcm2, I_prop, J_prop, prop="contrast")
                     
                     #Calculate LBP distance's weight [Kellah - Eq.9]
                     dh = euclidian_distance(d1,d2, eps)
@@ -119,7 +124,7 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
                     index_element = index_element + 1 
 
             #Sampled standard deviation of all LBP similarity distances obtained according to [Kellah - Eq.9].               
-            hsi = np.std(similarity_weights) + eps
+            hSi = np.std(similarity_weights) + eps
             #LBP Weighting function - [Kellah - Eq.8]           
             similarity_weights = calc_weight(similarity_weights,h)    
          

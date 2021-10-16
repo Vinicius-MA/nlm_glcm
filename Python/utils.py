@@ -27,7 +27,6 @@ def chisquare_distance(A, B, eps):
 def euclidian_distance(A, B, eps):
     return np.sum( np.sqrt( (A - B)**2 ) )
 
-
 def calculate_psnr(img1, img2, max_value=255):
     """"Calculating peak signal-to-noise ratio (PSNR) between two images."""
     mse = np.mean((np.array(img1, dtype=np.float64) - np.array(img2, dtype=np.float64)) ** 2)
@@ -86,15 +85,15 @@ def graycomatrix(image, distances, angles, levels, symmetric, normed):
     
     # normalize G
     if normed:
-        Gn = np.zeros( G.shape, dtype=np.float64 )
         Gn = G.astype( np.float64 )
-        glcm_sums = np.sum( Gn, axis=(0,1) )#, keepdims=True)
+        #glcm_sums = np.sum( Gn, axis=(0,1) )
+        glcm_sums = np.sum( np.sum(Gn, axis=0), axis=0)
         for elem in np.nditer(glcm_sums):
             if elem == 0:
                 elem = 1
         Gn /= glcm_sums
 
-    return G
+    return Gn
 
 @njit()
 def glcm_loop(image, distances, angles, levels, G):
@@ -121,22 +120,22 @@ def glcm_loop(image, distances, angles, levels, G):
                         G[i, j, d_idx, a_idx] += 1
 
 @njit()
-def graycoprops(G, prop='contrast'):
+def graycoprops(G, I, J, num_level=256, prop='contrast'):
     
-    (num_level, num_level2, num_dist, num_angle) = G.shape
+    (num_level1, num_level2, num_dist, num_angle) = G.shape
+    if num_level1 != num_level or num_level2 != num_level:
+        print("graycoprops: G dimensions must be equal to num_level. Dims: (", num_level1,",", num_level2, "). num_level: ", num_level)
 
-    # normalize GLCM
-    G = G.astype( np.float64 )
-    glcm_sums = np.sum( G, axis=(0, 1), keepdims=True )
+    # normalize G
+    Gn = G.astype( np.float64 )
+    glcm_sums = np.sum( np.sum(Gn, axis=0), axis=0)
     for elem in np.nditer(glcm_sums):
         if elem == 0:
             elem = 1
-    G /= glcm_sums
+    Gn /= glcm_sums
 
     # create weights for specified properties
     #I, J = np.ogrid[0:num_level, 0:num_level]
-    lSpace = np.linspace(0 ,num_level-1, num=num_level)
-    J, I = np.meshgrid( lSpace, lSpace, sparse=True )
     if prop == 'contrast':
         weights = (I - J) ** 2
     elif prop == 'dissimilarity':
@@ -147,18 +146,34 @@ def graycoprops(G, prop='contrast'):
         pass
     else:
         print("Value Error: ", prop)
-        #raise ValueError('invalid property: ', prop)
     
     # compute property for each GLCM
     if prop == 'energy':
-        asm = np.sum(G ** 2, axis=(0, 1))
-        results = np.sqrt(asm)
+        
+        weights = weights.reshape((num_level, num_level, 1, 1))
+        results = np.sum( np.sum(Gn * weights, axis=0), axis=0 )
+        
+        ## bugado com njit
+        #asm = np.sum(G ** 2, axis=(0, 1))
+        #results = np.sqrt(asm)
     elif prop == 'ASM':
-        results = np.sum(G ** 2, axis=(0, 1))
+        
+        weights = weights.reshape((num_level, num_level, 1, 1))
+        results = np.sum( np.sum(Gn * weights, axis=0), axis=0 )
+
+        ### bugado com njit
+        #results = np.sum(G ** 2, axis=(0, 1))
     elif prop == 'correlation':
-        results = np.zeros((num_dist, num_angle), dtype=np.float64)
-        I = np.array(range(num_level)).reshape((num_level, 1, 1, 1))
-        J = np.array(range(num_level)).reshape((1, num_level, 1, 1))
+        
+        weights = weights.reshape((num_level, num_level, 1, 1))
+        results = np.sum( np.sum(Gn * weights, axis=0), axis=0 )
+
+        """
+        #results = np.zeros((num_dist, num_angle), dtype=np.float64)            ## buga njit
+
+        aux = np.array( [ x for x in range(num_level) ], dtype=np.float64 )
+        I = aux.reshape((num_level, 1, 1, 1) )
+        J = aux.reshape((1, num_level, 1, 1) )
         diff_i = I - np.sum(I * G, axis=(0, 1))
         diff_j = J - np.sum(J * G, axis=(0, 1))
 
@@ -167,16 +182,18 @@ def graycoprops(G, prop='contrast'):
         cov = np.sum(G * (diff_i * diff_j), axis=(0, 1))
 
         # handle the special case of standard deviations near zero
-        mask_0 = std_i < 1e-15
+        mask_0 = ( std_i < 1e-15 ) or ( std_j < 1e-15 )
         mask_0[std_j < 1e-15] = True
-        results[mask_0] = 1
+        results[mask_0] = 1                ## não funciona com jnit
 
         # handle the standard case
         mask_1 = ~mask_0
-        results[mask_1] = cov[mask_1] / (std_i[mask_1] * std_j[mask_1])
+        results[mask_1] = cov[mask_1] / (std_i[mask_1] * std_j[mask_1])            ### não funciona com njit
+        """
+
     elif prop in ['contrast', 'dissimilarity', 'homogeneity']:
         weights = weights.reshape((num_level, num_level, 1, 1))
-        results = np.sum(G * weights, axis=(0, 1))
+        results = np.sum( np.sum(Gn * weights, axis=0), axis=0 )
 
     return results
 
