@@ -7,9 +7,8 @@
 """
 
 import numpy as np
-from numba import njit
+from numba import njit, prange, uint64
 from skimage import io
-
 from utils import *
 
 """ 
@@ -50,8 +49,7 @@ def nlm_glcm_filter(image, window_radius, patch_radius, h, distances, angles, le
     output = process(image,input2,kernel,window_radius,patch_radius,h,m,n,eps, distances, angles, levels, symmetric, normed, I_prop, J_prop)
     return output
 
-
-@njit()
+@njit(nogil=True, parallel=True)
 def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances, angles, levels, symmetric, normed, I_prop, J_prop):
     output=np.zeros((y,x), dtype = np.uint8)
     patch_size = (2*patch_radius)+1
@@ -59,16 +57,13 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
     #Initialing patch windows
     w1 = np.zeros((patch_size,patch_size), dtype = np.float64)
     w2 = np.zeros((patch_size,patch_size), dtype = np.float64)
-    w1_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
-    w2_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
+    glcm1 = np.zeros( (levels, levels), dtype=np.uint16 )
+    glcm2 = np.zeros( (levels, levels), dtype=np.uint16 )
+
+    done = 0
     
-    for i in range(y):
-
-        print('\t\tline ',i+1, ' out of ', y)
-
-        for j in range(x):
-
-            print('\tcolumn ',j+1, ' out of ', x)
+    for i in prange( int(y) ):
+        for j in prange( int(x) ):
 
             offset_y = i + patch_radius
             offset_x = j + patch_radius
@@ -99,8 +94,9 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
             similarity_weights=np.zeros((patch_samples_size), dtype = np.float64)
             
             #Compare central patch with neighbors
-            for r in range(y_min,y_max):
-                for s in range(x_min,x_max):
+            for r in prange( int(y_min), int(y_max) ):
+                for s in prange( int(x_min), int(x_max) ):
+                    
                     if(r==offset_y and s==offset_x):
                         continue
                     
@@ -139,4 +135,8 @@ def process(input,input2,kernel,window_radius,patch_radius,h,y,x,eps, distances,
                 output[i,j] = average / sweight
             else:
                 output[i,j] = input[i,j]
+            
+            done += 1
+            print(100*done/(y*x) , '% done')
+    
     return output
