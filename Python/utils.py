@@ -9,7 +9,8 @@ import math
 
 import numba
 import numpy as np
-from numba import float64, jit, njit
+from numba import float64, jit, njit, prange, uint64
+from numba.typed import Dict
 
 @njit()
 def normalize_data(data,eps):
@@ -70,10 +71,110 @@ def make_kernel(f):
     result =  (kernel / f)
     return (kernel / f)
 
-@njit()
+#@njit(nogil=True)
+def graycomatrix_fast( image, distances, angles, levels, symmetric, normed ):
+
+    L1, L2 = image.shape[0:2]
+
+    if True:#L1*L2 < levels:
+        histogram = np.histogram(image, bins=levels, range=(0,levels) )
+        
+        # reducing histogram (removing levels with 0 pixels)
+        # 'eq' stores which gray level is equivalent to which index
+        # reducing dictionary
+        dr = reduced_histogram(histogram)
+        K = dr.shape[0]
+
+        Gr = np.zeros(
+            ( K, K, np.uint16( len(distances) ),np.uint16( len(angles) ) ),
+             dtype=np.float64
+        )
+
+        glcm_loop_fast(image, distances, angles, levels, Gr, dr)
+        G = glcm_reduced2total(Gr, dr, levels, angles, distances)
+
+    else:
+        G = graycomatrix(image, distances, angles, levels, symmetric, normed)
+
+    # make G symmetric
+    if symmetric:
+        Gt = np.transpose( G, (1, 0, 2, 3) )
+        G += Gt
+    
+    # normalize G
+    if normed:
+        Gn = G.astype( np.float64 )
+        #glcm_sums = np.sum( Gn, axis=(0,1) )
+        glcm_sums = np.sum( np.sum(Gn, axis=0), axis=0)
+        for elem in np.nditer(glcm_sums):
+            if elem == 0:
+                elem = 1
+        G = Gn / glcm_sums
+
+    return G
+
+#@njit(nogil=True, parallel=True)
+def glcm_loop_fast(image, distances, angles, levels, Gr, dr):
+    rows, cols = image.shape
+    for a_idx in prange( len(angles) ):
+        angle = angles[ a_idx ]
+        for d_idx in prange( len(distances) ):
+            dist = distances[ d_idx ]
+            offset_row = round( np.sin(angle) * dist )
+            offset_col = round( np.cos(angle) * dist )
+            start_row = np.uint16( max( 0, -offset_row ) )
+            end_row = np.uint16( min( rows, rows - offset_row ) )
+            start_col = np.uint16( max( 0, -offset_col ) )
+            end_col = np.uint16( min( cols, cols - offset_col ) )
+            for r in prange( start_row, end_row ):
+                for c in prange( start_col, end_col ):
+                    i = int( image[r, c] )
+                    # computes pixel position
+                    j_row = r + offset_row
+                    j_col = c + offset_col
+                    # comparing pixel
+                    j = int( image[ j_row, j_col ] )
+                    if ( i >= 0 and i< levels) and ( j >= 0 and j < levels ):
+                        gl_i = np.where(dr == i)[0][0]
+                        gl_j = np.where(dr == j)[0][0]
+                        Gr[gl_i, gl_j, d_idx, a_idx] += 1
+    dummy = 0
+
+#@njit(nogil=True, parallel=True)
+def glcm_reduced2total( Gr, dr, levels, angles, distances ):
+
+    G = np.zeros(
+        ( np.uint16(levels), np.uint16(levels),
+            np.uint16(len(distances)),np.uint16(len(angles)) 
+        ), dtype=np.float64
+    )
+
+    K = dr.shape[0]   
+    for a_idx in prange( len(angles) ):
+        for d_idx in prange( len(distances) ):
+            for gr_index_r in prange(K):
+                
+                gl_r = dr[ gr_index_r ][0]
+
+                for gr_index_c in prange(K):
+                    
+                    gl_c = dr[ gr_index_c ][0]
+
+                    G[gl_r, gl_c, d_idx, a_idx] = (
+                        Gr[gr_index_r, gr_index_c, d_idx, a_idx]
+                    )
+
+    return G
+
+
+@njit(nogil=True)
 def graycomatrix(image, distances, angles, levels, symmetric, normed):
 
-    G = np.zeros( (np.uint16(levels), np.uint16(levels), np.uint16(len(distances)),np.uint16(len(angles)) ), dtype=np.uint32 )
+    G = np.zeros( (
+            np.uint16(levels), np.uint16(levels),
+            np.uint16(len(distances)),np.uint16(len(angles)) 
+         ), dtype=np.float64
+    )
 
     # count co-occurrences
     glcm_loop(image, distances, angles, levels, G)
@@ -91,11 +192,11 @@ def graycomatrix(image, distances, angles, levels, symmetric, normed):
         for elem in np.nditer(glcm_sums):
             if elem == 0:
                 elem = 1
-        Gn /= glcm_sums
+        G = Gn / glcm_sums
 
-    return Gn
+    return G
 
-@njit()
+@njit(nogil=True)
 def glcm_loop(image, distances, angles, levels, G):
     rows, cols = image.shape
     for a_idx in range( len(angles) ):
@@ -108,8 +209,8 @@ def glcm_loop(image, distances, angles, levels, G):
             end_row = np.uint16( min( rows, rows - offset_row ) )
             start_col = np.uint16( max( 0, -offset_col ) )
             end_col = np.uint16( min( cols, cols - offset_col ) )
-            for r in range( start_row, end_row ):
-                for c in range( start_col, end_col ):
+            for r in prange( start_row, end_row ):
+                for c in prange( start_col, end_col ):
                     i = np.uint16( image[r, c] )
                     # computes pixel position
                     j_row = r + offset_row
@@ -118,13 +219,14 @@ def glcm_loop(image, distances, angles, levels, G):
                     j = np.uint16( image[ j_row, j_col ] )
                     if ( i >= 0 and i< levels) and ( j >= 0 and j < levels ):
                         G[i, j, d_idx, a_idx] += 1
+    dummy = 0
 
-@njit()
+@njit(nogil=True)
 def graycoprops(G, I, J, num_level=256, prop='contrast'):
     
     (num_level1, num_level2, num_dist, num_angle) = G.shape
-    if num_level1 != num_level or num_level2 != num_level:
-        print("graycoprops: G dimensions must be equal to num_level. Dims: (", num_level1,",", num_level2, "). num_level: ", num_level)
+    #if num_level1 != num_level or num_level2 != num_level:
+    #    print("graycoprops: G dimensions must be equal to num_level. Dims: (", num_level1,",", num_level2, "). num_level: ", num_level)
 
     # normalize G
     Gn = G.astype( np.float64 )
@@ -196,6 +298,42 @@ def graycoprops(G, I, J, num_level=256, prop='contrast'):
         results = np.sum( np.sum(Gn * weights, axis=0), axis=0 )
 
     return results
+
+#@njit(nogil=True, parallel=True)
+def reduced_histogram(histogram):
+    hist = histogram[0]
+    bin_edges = histogram[1]
+    #hist_reduced = np.array( [], dtype=np.uint64 )
+    #levels_reduced = np.array( [], dtype=hist.dtype)
+
+    K = 0
+    for ii in prange( len(hist) ):
+
+        if hist[ii] == 0:
+            continue
+        
+        else:
+            #hist_reduced = np.append(hist_reduced, np.uint64( hist[ii] ) )
+            #levels_reduced = np.append(levels_reduced, ii )
+            #ii = uint64(ii)
+            # dr[ G gray-level] = Gr index
+            #dr[ii] = uint64(K)
+            K += 1
+    
+    gray_levels = np.zeros((K,1), dtype=np.uint64)
+
+    k = 0
+    for ii in prange( len(hist) ):
+
+        if hist[ii] == 0:
+            continue
+        else:
+            gray_levels[k] = ii
+            k += 1
+
+    #return ( hist_reduced, levels_reduced )
+    return gray_levels
+
 
 def gaussian_noise(size, mean=0, std=0.01):
     '''
