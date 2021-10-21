@@ -35,12 +35,12 @@ def calculate_psnr(img1, img2, max_value=255):
         return 100
     return 20 * np.log10(max_value / (np.sqrt(mse)))
 
-def add_gaussian_noise(image, mean=0, sigma=20):
+def add_gaussian_noise(image, mean=0, sigma=20, max_gray=255):
     """Add Gaussian noise to an image of type np.uint8."""
     gaussian_noise = np.random.normal(mean, sigma, image.shape)
     gaussian_noise = gaussian_noise.reshape(image.shape)
     noisy_image = image + gaussian_noise
-    noisy_image = np.clip(noisy_image, 0, 255)
+    noisy_image = np.clip(noisy_image, 0, max_gray)
     noisy_image = noisy_image.astype(np.uint8)
     return noisy_image
 
@@ -70,102 +70,6 @@ def make_kernel(f):
                 kernel[f-i,f-j] = kernel[f-i,f-j] + value 
     result =  (kernel / f)
     return (kernel / f)
-
-#@njit(nogil=True)
-def graycomatrix_fast( image, distances, angles, levels, symmetric, normed ):
-
-    L1, L2 = image.shape[0:2]
-
-    if True:#L1*L2 < levels:
-        histogram = np.histogram(image, bins=levels, range=(0,levels) )
-        
-        # reducing histogram (removing levels with 0 pixels)
-        # 'eq' stores which gray level is equivalent to which index
-        # reducing dictionary
-        dr = reduced_histogram(histogram)
-        K = dr.shape[0]
-
-        Gr = np.zeros(
-            ( K, K, np.uint16( len(distances) ),np.uint16( len(angles) ) ),
-             dtype=np.float64
-        )
-
-        glcm_loop_fast(image, distances, angles, levels, Gr, dr)
-        G = glcm_reduced2total(Gr, dr, levels, angles, distances)
-
-    else:
-        G = graycomatrix(image, distances, angles, levels, symmetric, normed)
-
-    # make G symmetric
-    if symmetric:
-        Gt = np.transpose( G, (1, 0, 2, 3) )
-        G += Gt
-    
-    # normalize G
-    if normed:
-        Gn = G.astype( np.float64 )
-        #glcm_sums = np.sum( Gn, axis=(0,1) )
-        glcm_sums = np.sum( np.sum(Gn, axis=0), axis=0)
-        for elem in np.nditer(glcm_sums):
-            if elem == 0:
-                elem = 1
-        G = Gn / glcm_sums
-
-    return G
-
-#@njit(nogil=True, parallel=True)
-def glcm_loop_fast(image, distances, angles, levels, Gr, dr):
-    rows, cols = image.shape
-    for a_idx in prange( len(angles) ):
-        angle = angles[ a_idx ]
-        for d_idx in prange( len(distances) ):
-            dist = distances[ d_idx ]
-            offset_row = round( np.sin(angle) * dist )
-            offset_col = round( np.cos(angle) * dist )
-            start_row = np.uint16( max( 0, -offset_row ) )
-            end_row = np.uint16( min( rows, rows - offset_row ) )
-            start_col = np.uint16( max( 0, -offset_col ) )
-            end_col = np.uint16( min( cols, cols - offset_col ) )
-            for r in prange( start_row, end_row ):
-                for c in prange( start_col, end_col ):
-                    i = int( image[r, c] )
-                    # computes pixel position
-                    j_row = r + offset_row
-                    j_col = c + offset_col
-                    # comparing pixel
-                    j = int( image[ j_row, j_col ] )
-                    if ( i >= 0 and i< levels) and ( j >= 0 and j < levels ):
-                        gl_i = np.where(dr == i)[0][0]
-                        gl_j = np.where(dr == j)[0][0]
-                        Gr[gl_i, gl_j, d_idx, a_idx] += 1
-    dummy = 0
-
-#@njit(nogil=True, parallel=True)
-def glcm_reduced2total( Gr, dr, levels, angles, distances ):
-
-    G = np.zeros(
-        ( np.uint16(levels), np.uint16(levels),
-            np.uint16(len(distances)),np.uint16(len(angles)) 
-        ), dtype=np.float64
-    )
-
-    K = dr.shape[0]   
-    for a_idx in prange( len(angles) ):
-        for d_idx in prange( len(distances) ):
-            for gr_index_r in prange(K):
-                
-                gl_r = dr[ gr_index_r ][0]
-
-                for gr_index_c in prange(K):
-                    
-                    gl_c = dr[ gr_index_c ][0]
-
-                    G[gl_r, gl_c, d_idx, a_idx] = (
-                        Gr[gr_index_r, gr_index_c, d_idx, a_idx]
-                    )
-
-    return G
-
 
 @njit(nogil=True)
 def graycomatrix(image, distances, angles, levels, symmetric, normed):
@@ -299,42 +203,6 @@ def graycoprops(G, I, J, num_level=256, prop='contrast'):
 
     return results
 
-#@njit(nogil=True, parallel=True)
-def reduced_histogram(histogram):
-    hist = histogram[0]
-    bin_edges = histogram[1]
-    #hist_reduced = np.array( [], dtype=np.uint64 )
-    #levels_reduced = np.array( [], dtype=hist.dtype)
-
-    K = 0
-    for ii in prange( len(hist) ):
-
-        if hist[ii] == 0:
-            continue
-        
-        else:
-            #hist_reduced = np.append(hist_reduced, np.uint64( hist[ii] ) )
-            #levels_reduced = np.append(levels_reduced, ii )
-            #ii = uint64(ii)
-            # dr[ G gray-level] = Gr index
-            #dr[ii] = uint64(K)
-            K += 1
-    
-    gray_levels = np.zeros((K,1), dtype=np.uint64)
-
-    k = 0
-    for ii in prange( len(hist) ):
-
-        if hist[ii] == 0:
-            continue
-        else:
-            gray_levels[k] = ii
-            k += 1
-
-    #return ( hist_reduced, levels_reduced )
-    return gray_levels
-
-
 def gaussian_noise(size, mean=0, std=0.01):
     '''
     Generates a matrix with Gaussian noise in the range [0-255] to be added to an image
@@ -353,3 +221,18 @@ def gaussian_kernel(k=3, sigma=1.0):
     x, y = np.meshgrid(arx, arx)
     filt = np.exp(-(1/2)*(np.square(x) + np.square(y))/np.square(sigma))
     return filt/np.sum(filt)
+
+@njit(nogil=True, parallel=True)
+def image2patch( im_in, im_pad, hw ):
+    
+    m = im_in.shape[0]
+    n = im_in.shape[1]
+    w = 2*hw + 1
+
+    im_patch = np.empty( (m, n, w, w), dtype=np.uint8 )
+
+    for ii in prange(m):
+        for jj in prange(n):
+            im_patch[ ii, jj, 0:w, 0:w ] = im_pad[ ii:ii+w, jj:jj+w ].astype(np.uint8)
+
+    return im_patch

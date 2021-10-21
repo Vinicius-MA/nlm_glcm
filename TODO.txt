@@ -1,1 +1,4 @@
-Refatorar NLM-GLCM para usar greycomatrix do skimage
+- adequar greycoprops para njit
+- problema de memrória RAM:
+    a. utilizar memória não volátil para armazenar glcm_patch e d_patch?
+    b. utilizar python notebook (servidor do Google)

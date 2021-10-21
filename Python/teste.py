@@ -4,36 +4,37 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage import io
 from skimage.feature import greycomatrix, greycoprops
+from skimage.restoration import denoise_nl_means
 from skimage.transform import rescale
 
 from nlm_glcm import nlm_glcm_filter
 import nlm_glcm
 from noise_sampling import BaseImage
-from utils import *
+import utils as ut
 
 
 def teste_noise_sampling():
 
-    sigmaList = [10, 25, 50]
-    
-    imageInFolder = 'Python/testes/'
-    imageOutFolder = 'Python/testes/'
-    spreadsheetFolder = 'Python/testes/'
+    sigma_list = [10, 25, 50]
 
-    filenames = [f'original.jpg']
+    image_in_folder = 'Python/testes/'
+    image_out_folder = 'Python/testes/'
+    spreadsheet_folder = 'Python/testes/'
+
+    filenames = ['original.jpg']
 
     for fname in filenames:
-    
-            baseImage = BaseImage( f'{fname}', sigmaList, folder=imageInFolder)
 
-            start = time.time()
-            baseImage.generate_noisy_samples(folder = imageOutFolder)
-            diff = time.time() - start
-            
-            baseImage.generate_nlmLbp_samples(folder = imageOutFolder)
-            baseImage.generate_spreadsheet( folder = spreadsheetFolder)
+        base_image = BaseImage( f'{fname}', sigma_list, folder=image_in_folder)
 
-            print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
+        start = time.time()
+        base_image.generate_noisy_samples(folder = image_out_folder)
+        diff = time.time() - start
+
+        base_image.generate_nlmLbp_samples(folder = image_out_folder)
+        base_image.generate_spreadsheet( folder = spreadsheet_folder)
+
+        print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
 
 def teste1():
 
@@ -43,7 +44,7 @@ def teste1():
     #angles = [0]
     angles = [0, np.pi/4, np.pi/2, np.pi]
 
-    plotShape = [ len(dists), len(angles) ]
+    plot_shape = [ len(dists), len(angles) ]
 
     img = ( 255 * io.imread('original.jpg', as_gray=True) ).astype( np.uint8 )
 
@@ -53,12 +54,12 @@ def teste1():
     print( features.shape )
     print( features )
 
-    fig, ax = plt.subplots( plotShape[0], plotShape[1] )
+    fig, ax = plt.subplots( plot_shape[0], plot_shape[1] )
 
     k=0
-    for i in range( plotShape[0] ):
-        for j in range( plotShape[1] ):
-            
+    for i in range( plot_shape[0] ):
+        for j in range( plot_shape[1] ):
+
             ax[i,j].imshow( g[ :, :, i, j ] )
             ax[i, j].set_title( f'angle={angles[i]:#.01f},dist={dists[j]*180:#.01f}' )
             k += 1
@@ -67,26 +68,25 @@ def teste1():
 
 def teste2():
 
-    dists = np.array( [5, 10, 12] )
+    distances = np.array( [3] )
     angles = np.array( [0., np.pi/2], dtype=np.float64 )
 
     window_radius = 10
     patch_radius = 6
 
-    h = 25
-
-    levels = 256
+    levels = 64
+    h = 25/4
 
     image = io.imread( 'Python/testes/original.jpg', as_gray=True)
-    image = rescale( image, 0.25, anti_aliasing=True)
-    image = (255 * image).astype(np.uint8)
-    image_n = add_gaussian_noise( image, sigma=h )
+    #image = rescale( image, 0.25, anti_aliasing=True)
+    image = ( (levels-1) * image).astype(np.uint8)
+    image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1)
 
-    image_out = nlm_glcm_filter( image_n, window_radius, patch_radius, h, dists, angles, levels, False, True )
+    image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, h, distances, angles, levels, False, False)
 
     print('PSNR:')
-    print( f'\tnoisy: { calculate_psnr(image, image_n) }' )
-    print(f'\tfiltered: {calculate_psnr(image, image_out)}')
+    print( f'\tnoisy: { ut.calculate_psnr(image, image_n) }' )
+    print(f'\tfiltered: { ut.calculate_psnr(image, image_out)}')
 
     fig, axes = plt.subplots(1,3)
     ax = axes.ravel()
@@ -103,8 +103,9 @@ def teste2():
     plt.tight_layout()
     plt.show()
 
-def teste_glcm_fast():
-    dists = np.array( [5, 10, 12] )
+def teste_dev():
+
+    distances = np.array( [5] )
     angles = np.array( [0., np.pi/2], dtype=np.float64 )
 
     window_radius = 10
@@ -112,27 +113,20 @@ def teste_glcm_fast():
 
     h = 25
 
-    levels = 256
+    hw = 6
+    w = 2*hw + 1
+
+    levels = 64
 
     image = io.imread( 'Python/testes/original.jpg', as_gray=True)
-    image = (255 * image).astype(np.uint8)
+    #image = rescale( image, 0.25, anti_aliasing=True)
+    image = ( (levels-1) * image).astype(np.uint8)
+    image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1 )
 
-    fragment = image[0:13, 0:13]
-    
-    time0 = time.time()
-    out_skimage = greycomatrix(fragment, dists, angles, levels, False, False)
-    time1 = time.time()
-    out_std = graycomatrix(fragment, dists, angles, levels, False, False)
-    time2 = time.time()
-    out_fast = graycomatrix_fast(fragment, dists, angles, levels, False, False)
-    time3 = time.time()
-
-    print('results:')
-    print(f'out_skimage: {time1-time0:#.04f} seconds')
-    print(f'out_std: {time2-time1:#.04f} seconds')
-    print(f'out_fast: {time3-time1:#.04f} seconds')
+    glcm = greycomatrix(image, distances, angles)
+    d = greycoprops(glcm)
 
     dummy = 0
 
-#teste2()
-teste_glcm_fast()
+teste2()
+#teste_dev()
