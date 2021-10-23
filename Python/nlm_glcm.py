@@ -11,6 +11,7 @@ from numba import njit, prange, cuda
 import skimage.feature as sft
 import utils as ut
 import time
+import sys
 
 """
 
@@ -33,24 +34,41 @@ Co-Occurrence Matrix and Haralick Features
 #   lbp_radius     : LBP Radius  
 # ------------------------------------------------------------------------
 """
-def nlm_glcm_filter(im_in, window_radius, patch_radius, h, distances, angles, levels, symmetric, normed):
+def nlm_glcm_filter(im_in, window_radius, patch_radius, h, distances, angles, levels=256, symmetric=False, prop='contrast', max_ram=4):
 
+    """ 
+        prop : {'contrast', 'dissimilarity', 'homogeneity', 'energy', \
+            'correlation', 'ASM'}, optional 
+            
+    """
+    
     m = im_in.shape[0]
     n = im_in.shape[1]
-
-    print( 'calculating glcm...', end=' ')
     
     output = np.empty( (m,n), dtype=np.uint8 )
 
     im_pad = np.pad( im_in,(patch_radius, patch_radius), mode='symmetric' ).astype(np.float64)
+    m_pad = im_pad.shape[0]
+    n_pad = im_pad.shape[1]
+
     kernel = ut.make_kernel(patch_radius)
     eps = 10e-7
-    
-    t0 = time.time()
-    im_patch = ut.image2patch(im_in, im_pad, patch_radius)
-    glcm_patch, d_patch = patch2glcm(im_patch, m, n, levels, distances, angles)
-    t1 = time.time()
-    print(f'done in {t1-t0:#.03f} s!')
+
+    # calculate RAM allocation (in GB)
+    total_space = m_pad*n_pad*(levels**2)*distances.shape[0]*angles.shape[0]*8 / 1024**3
+    num_iter = int( np.ceil( total_space / max_ram ) )
+    X, Y = calc_slices_division( num_iter, m_pad, n_pad)
+    # slices dimensions (last is smaller or equal)
+    a = m // X
+    b = n // Y
+
+    slices = np.empty( (X, Y, a, b ), dtype=np.uint8 )
+    slices_pad = np.empty( 
+        (X, Y, a+2*patch_radius, b+2*patch_radius), dtype=np.uint8
+    )
+    slices_out = np.empty_like(slices)
+
+    ut.image2slices(im_in, im_pad, X, Y, slices, slices_pad)
 
     h = h*h
 
@@ -58,20 +76,41 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, h, distances, angles, le
     I_prop = I_prop.astype(np.float64)
     J_prop = J_prop.astype(np.float64)
 
-    print('processing image...', end=' ')
-    t0 = time.time()
-    output = process(im_in,im_pad, im_patch, glcm_patch, d_patch, kernel,window_radius,patch_radius,
-        h,m,n,eps, distances, angles, levels, symmetric, normed, I_prop, J_prop )
-    t1 = time.time()
+    print( f"total RAM needed: {total_space:#.01f} GB. Using maximum of {max_ram:#.01f} GB in {num_iter} iteractions...")
 
-    print(f'done in {t1-t0:#.03f} s!')
+    for ii in range(X):
+        for jj in range(Y):
 
+            cur_slice = slices[ ii, jj, :, : ]
+            cur_slice_pad = slices_pad[ ii, jj, :, : ]
+
+            # m,n for slices, respectively
+            a, b = cur_slice.shape
+
+            im_patch = ut.image2patch(cur_slice, cur_slice_pad, patch_radius)
+
+            glcm_patch, d_patch = patch2glcm(im_patch, a, b, levels, distances, angles, symmetric, prop)
+
+            print( f'processing ({ii+1}, {jj+1}) of ({X}, {Y})... (using {sys.getsizeof(glcm_patch)/1024**3:#.02f} GB for glcm_patch)', end='\t')
+
+            t0 = time.time()
+            
+            slices_out[ ii, jj, :, : ] = process( cur_slice, cur_slice_pad, 
+                glcm_patch, d_patch, kernel, window_radius, patch_radius,
+                h, a, b, eps, distances, angles, levels, I_prop, J_prop
+            )
+
+            dif = time.time() - t0
+
+            print( f'done in {int(dif//60)} min {dif%60:#.02f} s!')
+
+    output = ut.slices2image(im_in, slices_out)
 
     return output
 
 @njit(nogil=True, parallel=True)
-def process( input, im_pad, im_patch, glcm_patch, d_patch, kernel, window_radius, patch_radius,
-    h, y, x, eps, distances, angles, levels, symmetric, normed, I_prop, J_prop ):
+def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius, patch_radius,
+    h, y, x, eps, distances, angles, levels, I_prop, J_prop ):
     
     output=np.empty( (y,x), dtype=np.uint8 )
     patch_size = (2*patch_radius)+1
@@ -119,7 +158,9 @@ def process( input, im_pad, im_patch, glcm_patch, d_patch, kernel, window_radius
             for r in prange( int(y_min), int(y_max) ):
                 for s in prange( int(x_min), int(x_max) ):
                     
-                    if(r==offset_y and s==offset_x):
+                    if( r == offset_y and s == offset_x ):
+                        continue
+                    if( r >= glcm_patch.shape[0] or s >= glcm_patch.shape[1] ):
                         continue
                     
                     #Get NLM neighbor patch in search window (original im_in)
@@ -160,7 +201,7 @@ def process( input, im_pad, im_patch, glcm_patch, d_patch, kernel, window_radius
     
     return output
 
-def patch2glcm(im_patch, m, n, levels, distances, angles, prop='contrast' ):
+def patch2glcm(im_patch, m, n, levels, distances, angles, symmetric=False, prop='contrast' ):
 
     # m and n are obtained from the original (not padded ) image shape
     
@@ -170,8 +211,22 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, prop='contrast' ):
     for ii in range(m):
         for jj in range(n):
             patch = im_patch[ ii, jj, :, : ]
-            glcm = sft.greycomatrix(patch, distances, angles, levels)
+            glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric)
             glcm_patch[ii, jj, :, :, :, :] = glcm
             d_patch[ ii, jj, :, :] = sft.greycoprops( glcm, prop )
 
     return glcm_patch, d_patch
+
+def calc_slices_division( N, m, n):
+
+    # system:
+    #   (1) N = X*Y
+    #   (2) X/Y = m/n 
+    # Results in:
+    #   Y = sqrt( N * n/m )
+    #   X = Y*m/n
+
+    Y = int( np.sqrt( ( n / m ) * N ) )
+    X = int( np.ceil( N / Y ) )
+
+    return X, Y

@@ -236,3 +236,82 @@ def image2patch( im_in, im_pad, hw ):
             im_patch[ ii, jj, 0:w, 0:w ] = im_pad[ ii:ii+w, jj:jj+w ].astype(np.uint8)
 
     return im_patch
+
+"""
+parameters:
+    im_in : input image (gray-scale - 2D, uint8)
+    X :     number of width-oriented slices
+    Y :     number of height-oriented slices
+    hw:     image padding half-width
+return (to):
+    slices :slice-array refering to im_in
+    slices_pad: slice-array referring to padded input image (im_pad)
+"""
+@njit(nogil=True, parallel=True)
+def image2slices( im_in, im_pad, X, Y, slices, slices_pad ):
+
+    im_in = im_in.astype( np.uint8 )
+    X = np.uint8(X)
+    Y = np.uint8(Y)
+    
+    m = im_in.shape[0]
+    n = im_in.shape[1]
+
+    # slices dimensions (last is less or equal)
+    a = slices.shape[2]
+    b = slices.shape[3]
+
+    w = slices_pad.shape[2] - a
+
+    for ii in prange(X):
+        for jj in prange(Y):
+
+            # current slice boundaries
+            start_m = ii * a
+            end_m = np.minimum( (ii+1)*a, m )
+            start_n = jj * b
+            end_n = np.minimum( (jj+1)*b, n )
+
+            #  the last slice dimensions can be less than a x b
+            diff_m = end_m - start_m
+            diff_n = end_n - start_n
+
+            slices[ ii, jj, 0 : diff_m, 0 : diff_n ] = (
+                 im_in[ start_m : end_m, start_n : end_n ] 
+                )
+
+            slices_pad[ ii, jj, 0:diff_m + w, 0:diff_n + w] = (
+                im_pad[ start_m : end_m + w, start_n : end_n + w]
+            )
+
+@njit(nogil=True, parallel=True)
+def slices2image( im_in, slices ):
+
+    X = slices.shape[0]
+    Y = slices.shape[1]
+    a = slices.shape[2]
+    b = slices.shape[3]
+
+    m = im_in.shape[0]
+    n = im_in.shape[1]
+
+    im_out = np.empty_like(im_in)
+
+    for ii in prange(X):
+        for jj in prange(Y):
+
+            # current slice boundaries
+            start_m = ii * a
+            end_m = np.minimum( (ii+1)*a, m )
+            start_n = jj * b
+            end_n = np.minimum( (jj+1)*b, n )
+
+            #  the last slice dimensions can be less than a x b
+            diff_m = end_m - start_m
+            diff_n = end_n - start_n
+
+            im_out[ start_m : end_m, start_n : end_n ] = (
+                 slices[ ii, jj, 0:diff_m, 0:diff_n ]
+                )
+
+    return im_out

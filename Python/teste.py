@@ -11,6 +11,20 @@ from nlm_glcm import nlm_glcm_filter
 import nlm_glcm
 from noise_sampling import BaseImage
 import utils as ut
+import chime
+
+def list2str( list_in ):
+    
+    list_str = '['
+    
+    for l in list_in:
+        list_str += f'{l:#.02f}'
+
+        if l < len(list_in)-2:
+            list_str += f','
+    list_str += ']'
+
+    return list_str
 
 
 def teste_noise_sampling():
@@ -68,36 +82,59 @@ def teste1():
 
 def teste2():
 
-    distances = np.array( [3] )
-    angles = np.array( [0., np.pi/2], dtype=np.float64 )
+    im_name = 'teste019.jpg'
 
-    window_radius = 10
-    patch_radius = 6
+    prop = 'dissimilarity'
+    
+    distances = [ 13 ]
+    angles = [ 0 ]
 
-    levels = 64
-    h = 25/4
+    window_radius = 16
+    patch_radius = 10
+
+    levels = 256
+    symmetric = True
+
+    h = 25
 
     image = io.imread( 'Python/testes/original.jpg', as_gray=True)
     #image = rescale( image, 0.25, anti_aliasing=True)
     image = ( (levels-1) * image).astype(np.uint8)
     image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1)
 
-    image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, h, distances, angles, levels, False, False)
+    print(f'{im_name} -->\t{h}\t{prop}\t{distances}\t{list2str(angles)}\t{patch_radius}\t{window_radius}\t{symmetric}')
+
+    t0 = time.time()
+
+    image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, h,
+        np.array(distances,np.uint8), np.array(angles, np.float64),
+        levels, symmetric, prop, 50
+    )
+
+    dif = time.time() - t0
 
     print('PSNR:')
     print( f'\tnoisy: { ut.calculate_psnr(image, image_n) }' )
-    print(f'\tfiltered: { ut.calculate_psnr(image, image_out)}')
+    print( f'\tfiltered: { ut.calculate_psnr(image, image_out)}')
+
+    print( f'nlm_glcm_filter total elapsed time: {int(dif//60)} min {dif%60:#.02f} s')
+
+    io.imsave(f'Python/testes/{im_name}', image_out)
+
+    for i in range(10):
+        chime.error()
+        time.sleep(0.5)
 
     fig, axes = plt.subplots(1,3)
     ax = axes.ravel()
 
-    ax[0].imshow(image, cmap='gray')
+    ax[0].imshow(image[0:100, 0:100], cmap='gray')
     ax[0].set_title('Original')
 
-    ax[1].imshow(image_n, cmap='gray')
+    ax[1].imshow(image_n[0:100, 0:100], cmap='gray')
     ax[1].set_title('Noisy')
 
-    ax[2].imshow(image_out, cmap='gray')
+    ax[2].imshow(image_out[0:100, 0:100], cmap='gray')
     ax[2].set_title('Output')
 
     plt.tight_layout()
@@ -121,12 +158,22 @@ def teste_dev():
     image = io.imread( 'Python/testes/original.jpg', as_gray=True)
     #image = rescale( image, 0.25, anti_aliasing=True)
     image = ( (levels-1) * image).astype(np.uint8)
-    image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1 )
+    slices = ut.image2slices(image, 8, 4)
+    im_out = ut.slices2image(image, slices)
 
-    glcm = greycomatrix(image, distances, angles)
-    d = greycoprops(glcm)
+    print( False not in ( im_out == image ) )
 
-    dummy = 0
+    fig, axes = plt.subplots(1,2)
+    ax = axes.ravel()
+
+    ax[0].imshow(image, cmap='gray')
+    ax[0].set_title('Original')
+
+    ax[1].imshow(im_out, cmap='gray')
+    ax[1].set_title('Out')
+
+    plt.tight_layout()
+    plt.show()
 
 teste2()
 #teste_dev()

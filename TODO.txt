@@ -1,4 +1,9 @@
-- adequar greycoprops para njit
+- testes:
+    mudar propriedade
+        * mudar distância
+        * mudar ângulos
+        * mudar patch_radius
+
 - problema de memrória RAM:
     a. utilizar memória não volátil para armazenar glcm_patch e d_patch?
     b. utilizar python notebook (servidor do Google)
