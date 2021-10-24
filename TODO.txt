@@ -1,9 +1,11 @@
-- testes:
-    mudar propriedade
-        * mudar distância
-        * mudar ângulos
-        * mudar patch_radius
+Greycoprops:
 
-- problema de memrória RAM:
-    a. utilizar memória não volátil para armazenar glcm_patch e d_patch?
-    b. utilizar python notebook (servidor do Google)
+- resultados dos testes
+    - Utilizando a implementação do skimage, a propriedade de contraste é a unica funcao que nao "danifica" a imagem. Todas as outras, resultam em imagens similares
+    - Para todas as outras (menos contraste), aparecem "bolas" escuras onde eram "quadrados" claros na original, e linhas claras onde eram linhas escuras na original.
+- Ideias:
+    1. A implementação dessa funcao esta correta? Pq so possui comportamento diferente?
+    2. Utilizar contraste em combinacao com as outras propriedades (contraste/ASM, etc.)
+    3. Utilizar distância euclidiana aon inves de qui-quadrada
+    4. Utilizar GPU (Cuda)
+    5. Utilizar Google Collab

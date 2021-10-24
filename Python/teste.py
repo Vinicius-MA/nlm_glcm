@@ -82,15 +82,15 @@ def teste1():
 
 def teste2():
 
-    im_name = 'teste019.jpg'
+    im_name = 'teste078.jpg'
 
-    prop = 'dissimilarity'
+    prop = 'ASM'
     
-    distances = [ 13 ]
+    distances = [ 10 ]
     angles = [ 0 ]
 
-    window_radius = 16
-    patch_radius = 10
+    window_radius = 10
+    patch_radius = 6
 
     levels = 256
     symmetric = True
@@ -102,7 +102,7 @@ def teste2():
     image = ( (levels-1) * image).astype(np.uint8)
     image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1)
 
-    print(f'{im_name} -->\t{h}\t{prop}\t{distances}\t{list2str(angles)}\t{patch_radius}\t{window_radius}\t{symmetric}')
+    print(f'{im_name} -->\t{h}\t{prop}\t{list2str(angles)}\t{distances}\t{patch_radius}\t{window_radius}\t{symmetric}')
 
     t0 = time.time()
 

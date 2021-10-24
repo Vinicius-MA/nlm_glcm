@@ -5,3 +5,4 @@
 Python/testes/*_noisy.jpg
 Python/testes/*_nlmlbp.jpg
 Python/testes/*_nlm-glcm.jpg
+*.~lock.*
