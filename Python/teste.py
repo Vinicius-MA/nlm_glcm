@@ -1,17 +1,28 @@
 import time
+from enum import Enum
 
+import chime
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import io
 from skimage.feature import greycomatrix, greycoprops
 from skimage.restoration import denoise_nl_means
 from skimage.transform import rescale
-
-from nlm_glcm import nlm_glcm_filter
+from os.path import exists
 import nlm_glcm
-from noise_sampling import BaseImage
 import utils as ut
-import chime
+from nlm_glcm import nlm_glcm_filter
+from noise_sampling import BaseImage
+from nonlocal_means import nonlocal_means_original
+
+
+class Props(Enum):
+    CONTRAST        =   {"order":0, "name":"contrast"}
+    DISSIMILARITY   =   {"order":1, "name":"dissimilarity"}
+    HOMOGENEITY     =   {"order":2, "name":"homogeneity"}
+    ENERGY          =   {"order":3, "name":"energy"}
+    CORRELATION     =   {"order":4, "name":"correlation"}
+    ASM             =   {"order":5, "name":"ASM"}
 
 def list2str( list_in ):
     
@@ -20,12 +31,11 @@ def list2str( list_in ):
     for l in list_in:
         list_str += f'{l:#.02f}'
 
-        if l < len(list_in)-2:
-            list_str += f','
+        if l < len(list_in) - 1:
+            list_str += f', '
     list_str += ']'
 
     return list_str
-
 
 def teste_noise_sampling():
 
@@ -50,130 +60,109 @@ def teste_noise_sampling():
 
         print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
 
-def teste1():
+def teste2(img_in_path, test_category, test_number, sigma, props, distances, angles,
+    window_radius, patch_radius, symmetric, levels=256, plot=False, max_ram_gb=5. 
+ ):    
 
-    dists = [ 1, 3, 9, 15 ]
-    #dists = [ 5 ]
+    # folder and output name
+    folder = 'Python/testes/'
+    im_name = f"teste_{test_category:02d}_{test_number:03d}.jpg"
 
-    #angles = [0]
-    angles = [0, np.pi/4, np.pi/2, np.pi]
-
-    plot_shape = [ len(dists), len(angles) ]
-
-    img = ( 255 * io.imread('original.jpg', as_gray=True) ).astype( np.uint8 )
-
-    g = greycomatrix(img, dists, angles, 256)
-
-    features = greycoprops(g)
-    print( features.shape )
-    print( features )
-
-    fig, ax = plt.subplots( plot_shape[0], plot_shape[1] )
-
-    k=0
-    for i in range( plot_shape[0] ):
-        for j in range( plot_shape[1] ):
-
-            ax[i,j].imshow( g[ :, :, i, j ] )
-            ax[i, j].set_title( f'angle={angles[i]:#.01f},dist={dists[j]*180:#.01f}' )
-            k += 1
-
-    plt.show()
-
-def teste2():
-
-    im_name = 'teste078.jpg'
-
-    prop = 'ASM'
-    
-    distances = [ 10 ]
-    angles = [ 0 ]
-
-    window_radius = 10
-    patch_radius = 6
-
-    levels = 256
-    symmetric = True
-
-    h = 25
-
-    image = io.imread( 'Python/testes/original.jpg', as_gray=True)
-    #image = rescale( image, 0.25, anti_aliasing=True)
-    image = ( (levels-1) * image).astype(np.uint8)
-    image_n = ut.add_gaussian_noise( image, sigma=h, max_gray=levels-1)
-
-    print(f'{im_name} -->\t{h}\t{prop}\t{list2str(angles)}\t{distances}\t{patch_radius}\t{window_radius}\t{symmetric}')
-
-    t0 = time.time()
-
-    image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, h,
-        np.array(distances,np.uint8), np.array(angles, np.float64),
-        levels, symmetric, prop, 50
+    print()
+    print( 70 * '*' )
+    print(
+        f"""Test {test_category}/{test_number}:
+            \r\tsigma={sigma}
+            \r\tprops={props}
+            \r\tdistances={distances}
+            \r\tangles={list2str(angles)}
+            \r\twindow_radius={window_radius}
+            \r\tpatch_radius={patch_radius}
+            \r\tlevels={levels}
+            \r\tsymmetric={symmetric}
+        """
     )
 
-    dif = time.time() - t0
+    # read image and generate noisy version
+    image = io.imread( img_in_path, as_gray=True)
+    image = ( (levels-1) * image).astype(np.uint8)
+    image_n = ut.add_gaussian_noise( image, sigma=sigma, max_gray=levels-1)
+        
+    # Non Local Means Algorithm
+    im_nlm = denoise_nl_means(image_n, patch_radius, window_radius, sigma, preserve_range=True)
+    
+    # NLM + GLCM proposed algorithm
+    if not( exists( folder+im_name ) ):
+        
+        t0 = time.time()    
+        image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, sigma,
+            np.array(distances,np.uint8), np.array(angles, np.float64),
+            levels, props, symmetric, max_ram_gb
+        )
+        dif = time.time() - t0
 
-    print('PSNR:')
-    print( f'\tnoisy: { ut.calculate_psnr(image, image_n) }' )
-    print( f'\tfiltered: { ut.calculate_psnr(image, image_out)}')
+        # Save NLM-GLCM image to archive
+        io.imsave(folder+im_name, image_out)
 
-    print( f'nlm_glcm_filter total elapsed time: {int(dif//60)} min {dif%60:#.02f} s')
+    else:
+        dif = 0
+        image_out = io.imread( folder+im_name, as_gray=True )
 
-    io.imsave(f'Python/testes/{im_name}', image_out)
+    # Printing PSNRs and timings
+    print('\tPSNR:')
+    print( f'\t noisy: { ut.calculate_psnr(image, image_n) }' )
+    print( f'\t NLM: {ut.calculate_psnr(image, im_nlm)}')
+    print( f'\t NLM_GLCM: { ut.calculate_psnr(image, image_out)}')
+    print( f'\t*nlm-glcm time: {int(dif//60)}:{int(dif%60):#02d}')
+    print()
+    print( 70 * '*' )
 
-    for i in range(10):
-        chime.error()
-        time.sleep(0.5)
+    # Plotting
+    if plot:
+        fig, axes = plt.subplots(2,2)
+        ax = axes.ravel()
+        ax[0].imshow(image[0:100, 0:100], cmap='gray')
+        ax[0].set_title('Original')
+        ax[1].imshow(image_n[0:100, 0:100], cmap='gray')
+        ax[1].set_title('Noisy')
+        ax[2].imshow(im_nlm[0:100, 0:100], cmap='gray')
+        ax[2].set_title('NLM')
+        ax[3].imshow(image_out[0:100, 0:100], cmap='gray')
+        ax[3].set_title('Output')
+        plt.tight_layout()
+        plt.show()
 
-    fig, axes = plt.subplots(1,3)
-    ax = axes.ravel()
+def combine_props_2by2():
+    img_in_path = 'Python/testes/original.jpg'
+    test_category = 2
+    test_number = 200
 
-    ax[0].imshow(image[0:100, 0:100], cmap='gray')
-    ax[0].set_title('Original')
-
-    ax[1].imshow(image_n[0:100, 0:100], cmap='gray')
-    ax[1].set_title('Noisy')
-
-    ax[2].imshow(image_out[0:100, 0:100], cmap='gray')
-    ax[2].set_title('Output')
-
-    plt.tight_layout()
-    plt.show()
-
-def teste_dev():
-
-    distances = np.array( [5] )
-    angles = np.array( [0., np.pi/2], dtype=np.float64 )
-
+    sigma = 25
+    props = []
+    distances = [ 10 ]
+    angles = [ 0, np.pi/2 ]
     window_radius = 10
     patch_radius = 6
+    symmetric = True
+    levels = 256
 
-    h = 25
+    max_ram_gb = 4.5
 
-    hw = 6
-    w = 2*hw + 1
+    for prop1 in Props:
+        for prop2 in Props:
+            
+            if prop2.value['order'] <= prop1.value['order']:
+                continue
 
-    levels = 64
+            props = [ prop1.value['name'], prop2.value['name'] ]
 
-    image = io.imread( 'Python/testes/original.jpg', as_gray=True)
-    #image = rescale( image, 0.25, anti_aliasing=True)
-    image = ( (levels-1) * image).astype(np.uint8)
-    slices = ut.image2slices(image, 8, 4)
-    im_out = ut.slices2image(image, slices)
+            teste2( img_in_path, test_category, test_number, sigma, props,
+                distances, angles, window_radius, patch_radius, 
+                symmetric, levels, False, max_ram_gb
+            )
 
-    print( False not in ( im_out == image ) )
+            test_number += 1
 
-    fig, axes = plt.subplots(1,2)
-    ax = axes.ravel()
+if __name__ == "__main__":
 
-    ax[0].imshow(image, cmap='gray')
-    ax[0].set_title('Original')
-
-    ax[1].imshow(im_out, cmap='gray')
-    ax[1].set_title('Out')
-
-    plt.tight_layout()
-    plt.show()
-
-teste2()
-#teste_dev()
+    combine_props_2by2()
