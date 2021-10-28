@@ -1,5 +1,6 @@
 *__pycache__*
 *env-tcc/
+*env-tcc-w/
 .vscode/
 .~*.xlsx#
 Python/testes/*_noisy.jpg

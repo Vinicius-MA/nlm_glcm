@@ -1,7 +1,6 @@
 import time
 from enum import Enum
 
-import chime
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage import io
@@ -134,7 +133,7 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
 def combine_props_2by2():
     img_in_path = 'Python/testes/original.jpg'
-    test_category = 2
+    test_category = 3
     test_number = 200
 
     sigma = 25
@@ -146,7 +145,7 @@ def combine_props_2by2():
     symmetric = True
     levels = 256
 
-    max_ram_gb = 4.5
+    max_ram_gb = 3.5
 
     for prop1 in Props:
         for prop2 in Props:
