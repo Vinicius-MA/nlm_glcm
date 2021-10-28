@@ -9,3 +9,13 @@ Greycoprops:
     3. Utilizar distância euclidiana aon inves de qui-quadrada
     4. Utilizar GPU (Cuda)
     5. Utilizar Google Collab
+
+--> 25/10/2021
+    - nlm_glcm_filter estava usando h ao invés de hSi como parâmetro de 
+            e^{-d/hSi}
+    - refazer os testes com novo padrão
+    - usar distância qui-quadrada
+
+--> 27/10/2021
+    - hSi parece piorar o filtro (em relação ao sigma²)
+        - qual outro parâmetro pode substituir?

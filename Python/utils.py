@@ -243,21 +243,21 @@ parameters:
     X :     number of width-oriented slices
     Y :     number of height-oriented slices
     hw:     image padding half-width
-return (to):
+ return (to):
     slices :slice-array refering to im_in
     slices_pad: slice-array referring to padded input image (im_pad)
 """
 @njit(nogil=True, parallel=True)
-def image2slices( im_in, im_pad, X, Y, slices, slices_pad ):
+def image2slices( im_in, im_pad, slices, slices_pad ):
 
     im_in = im_in.astype( np.uint8 )
-    X = np.uint8(X)
-    Y = np.uint8(Y)
     
     m = im_in.shape[0]
     n = im_in.shape[1]
 
     # slices dimensions (last is less or equal)
+    X = slices.shape[0]
+    Y = slices.shape[1]
     a = slices.shape[2]
     b = slices.shape[3]
 
