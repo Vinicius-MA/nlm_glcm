@@ -19,3 +19,6 @@ Greycoprops:
 --> 27/10/2021
     - hSi parece piorar o filtro (em relação ao sigma²)
         - qual outro parâmetro pode substituir?
+
+--> 28/10/2021
+    - Ao invés de multiplicar as grecoprops, combinar arrays
