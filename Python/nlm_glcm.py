@@ -254,15 +254,15 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
                     d2 = d_patch[r, s, :, :]
                     
                     #Calculate GLCM distance's weight [Kellah - Eq.9]
-                    dh = ut.euclidian_distance( d1, d2, eps )
-                    #dh = ut.chisquare_distance( d1, d2, eps )
+                    #dh = ut.euclidian_distance( d1, d2, eps )
+                    dh = ut.chisquare_distance( d1, d2, eps )
                                         
                     similarity_weights[index_element] = dh
                     index_element = index_element + 1 
 
             #Sampled standard deviation of all LBP similarity distances obtained 
             # according to [Kellah - Eq.9].               
-            hSi = np.std(similarity_weights) + eps
+            #hSi = np.std(similarity_weights) + eps
 
             #LBP Weighting function - [Kellah - Eq.8]           
             similarity_weights = ut.calc_weight( similarity_weights, h )
@@ -335,7 +335,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
     # m and n are obtained from the original (not padded ) image shape
 
     glcm_patch = np.empty((m,n,levels,levels, distances.shape[0], angles.shape[0]), np.uint8)
-    d_patch = np.empty( (m, n, distances.shape[0], angles.shape[0]), np.float64 )
+    d_patch = np.empty( (m, n, len(props), distances.shape[0], angles.shape[0]), np.float64 )
     
     for ii in range(m):
         for jj in range(n):
@@ -344,11 +344,8 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
             glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric)
             glcm_patch[ii, jj, :, :, :, :] = glcm
 
-            d = np.ones( ( distances.shape[0], angles.shape[0]), np.float64 )
-            for prop in props:
-                d *= sft.greycoprops( glcm, prop )
-            
-            d_patch[ ii, jj, :, :] =  d
+            for kk in range( len(props) ):
+                d_patch[ ii, jj, kk, :, :] = sft.greycoprops( glcm, props[kk] )
 
     return glcm_patch, d_patch
 

@@ -23,6 +23,9 @@ class Props(Enum):
     CORRELATION     =   {"order":4, "name":"correlation"}
     ASM             =   {"order":5, "name":"ASM"}
 
+    def all():
+        return [prop.value['name'] for prop in Props ]
+
 def list2str( list_in ):
     
     list_str = '['
@@ -133,21 +136,22 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
 def combine_props_2by2():
     img_in_path = 'Python/testes/original.jpg'
-    test_category = 1
-    test_number = 250
+    test_category = 6
+    test_number = 302
 
     sigma = 25
-    props = ['contrast', 'dissimilarity', 'correlation']
+    props = Props.all()
     distances = [ 10 ]
-    angles = [ 0, np.pi/2 ]
+    angles = [ 0 ]
     window_radius = 10
     patch_radius = 6
-    symmetric = True
+    symmetric = False
     levels = 256
 
     max_ram_gb = 3.5
 
-    """ for prop1 in Props:
+    """
+    for prop1 in Props:
         for prop2 in Props:
             
             if prop2.value['order'] <= prop1.value['order']:
@@ -160,12 +164,13 @@ def combine_props_2by2():
                 symmetric, levels, False, max_ram_gb
             )
 
-            test_number += 1 """
-    
+            test_number += 1
+    """
+
     teste2( img_in_path, test_category, test_number, sigma, props,
-                distances, angles, window_radius, patch_radius, 
-                symmetric, levels, False, max_ram_gb
-            )
+        distances, angles, window_radius, patch_radius, 
+        symmetric, levels, False, max_ram_gb
+    )
 
 if __name__ == "__main__":
 
