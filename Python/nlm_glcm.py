@@ -254,8 +254,8 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
                     d2 = d_patch[r, s, :, :]
                     
                     #Calculate GLCM distance's weight [Kellah - Eq.9]
-                    #dh = ut.euclidian_distance( d1, d2, eps )
-                    dh = ut.chisquare_distance( d1, d2, eps )
+                    dh = ut.euclidian_distance( d1, d2, eps )
+                    #dh = ut.chisquare_distance( d1, d2, eps )
                                         
                     similarity_weights[index_element] = dh
                     index_element = index_element + 1 
@@ -265,7 +265,7 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
             #hSi = np.std(similarity_weights) + eps
 
             #LBP Weighting function - [Kellah - Eq.8]           
-            similarity_weights = ut.calc_weight( similarity_weights, h )
+            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/10 )
             #similarity_weights = ut.calc_weight( similarity_weights, hSi )
          
             #NLM max central pixel
@@ -310,7 +310,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
      * angles: 1D ndarray [np.float64]
         List of pixel pair angles, in radians, to be considered at 
          the GLCM calculus.
-     * props: array_like [str], optional
+     * props: array_like [str]
         List of strings that indicates which GLCM properties will be
          computed at the filter. The possible values are:
             ['contrast', 'dissimilarity', 'homogeneity', 'energy',

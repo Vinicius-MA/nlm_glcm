@@ -136,19 +136,19 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
 def combine_props_2by2():
     img_in_path = 'Python/testes/original.jpg'
-    test_category = 6
-    test_number = 302
+    test_category = 13
+    test_number = 250
 
     sigma = 25
-    props = Props.all()
+    props = [ p.value['name'] for p in [Props.CONTRAST, Props.DISSIMILARITY, Props.CORRELATION] ]
     distances = [ 10 ]
-    angles = [ 0 ]
+    angles = [ 0, np.pi/2 ]
     window_radius = 10
     patch_radius = 6
-    symmetric = False
+    symmetric = True
     levels = 256
 
-    max_ram_gb = 3.5
+    max_ram_gb = 4.
 
     """
     for prop1 in Props:
