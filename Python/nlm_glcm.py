@@ -190,8 +190,6 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
     w2 = np.zeros((patch_size,patch_size), dtype = np.float64)
     glcm1 = np.zeros( (levels, levels), dtype=np.uint16 )
     glcm2 = np.zeros( (levels, levels), dtype=np.uint16 )
-
-    done = 0
     
     for i in prange( y ):
         for j in prange( x ):
@@ -265,7 +263,7 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
             #hSi = np.std(similarity_weights) + eps
 
             #LBP Weighting function - [Kellah - Eq.8]           
-            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/10 )
+            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/2 )
             #similarity_weights = ut.calc_weight( similarity_weights, hSi )
          
             #NLM max central pixel
@@ -341,7 +339,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
         for jj in range(n):
 
             patch = im_patch[ ii, jj, :, : ]
-            glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric)
+            glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric, normed=True)
             glcm_patch[ii, jj, :, :, :, :] = glcm
 
             for kk in range( len(props) ):
