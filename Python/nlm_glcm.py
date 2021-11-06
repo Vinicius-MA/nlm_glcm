@@ -263,7 +263,7 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
             #hSi = np.std(similarity_weights) + eps
 
             #LBP Weighting function - [Kellah - Eq.8]           
-            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/2 )
+            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/20 )
             #similarity_weights = ut.calc_weight( similarity_weights, hSi )
          
             #NLM max central pixel

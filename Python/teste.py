@@ -136,7 +136,7 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
 def combine_props_2by2():
     img_in_path = 'Python/testes/original.jpg'
-    test_category = 11
+    test_category = 15
     test_number = 250
 
     sigma = 25
