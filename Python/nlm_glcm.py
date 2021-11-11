@@ -14,7 +14,6 @@ from numba import cuda, njit, prange
 
 import utils as ut
 
-
 def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma, 
      distances, angles, levels=256, props=['contrast'],
      symmetric=False, max_ram_gb=4.
@@ -25,7 +24,7 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      Parameters:
      ---------------     
      * im_in: 2D ndarray [np.uint8]
-        Input noisy image
+        im_in noisy image
      * window_radius: int
         Radius of the searching windows (Si) at which the pixels will
          be considered to calculate the central pixel's output value.    
@@ -42,13 +41,13 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
         List of pixel pair angles, in radians, to be considered at 
          the GLCM calculus.    
      * levels: int, optional
-        The input image should contain integers in [0, `levels`-1],
+        The im_in image should contain integers in [0, `levels`-1],
          where levels indicate the number of gray-levels counted
          (typically 256 for an 8-bit image). This argument is 
          required for 16-bit images or higher and is typically the 
          maximum of the image. As the output matrix is at least 
          `levels` x `levels`, it might be preferable to use binning
-         of the input image rather than large values for `levels`.    
+         of the im_in image rather than large values for `levels`.    
      * props: array_like [str], optional
         List of strings that indicates which GLCM properties will be
          computed at the filter. The possible values are:
@@ -63,7 +62,7 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      * max_ram_gb: float, optional (is it correctly implemented?)
         Maximum amount of RAM memory to be available to store the
          glcm_patch array the (probably unnecessarily) biggest array
-         in this algorithm. Accordingly to this value, the input
+         in this algorithm. Accordingly to this value, the im_in
          image is broken into minor slices, that are processed 
          independently.
     
@@ -86,11 +85,11 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      
      """
     
-    # input image shape is (m,n)
+    # im_in image shape is (m,n)
     m = im_in.shape[0]
     n = im_in.shape[1]
 
-    # padding input image and get new shape
+    # padding im_in image and get new shape
     im_pad = np.pad( im_in,(patch_radius, patch_radius),
         mode='symmetric' ).astype(np.float64
     )
@@ -101,86 +100,41 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
     kernel = ut.make_kernel(patch_radius)
     eps = 10e-7
 
-    # calculate RAM allocation
-    total_space_gb = ( m_pad*n_pad*(levels**2)
-        *distances.shape[0]*angles.shape[0] / 1024**3
-    )
-    num_iter = int( np.ceil( total_space_gb / max_ram_gb ) )
-    X, Y = calc_slices_division( num_iter, m_pad, n_pad)
-    # updates num_iter with calculated X,Y
-    num_iter = X*Y    
-    # slices dimensions (last slice is smaller or equal)
-    a = m // X
-    b = n // Y
-
     # alocate arrays memory
     output = np.empty( (m,n), dtype=np.uint8 )
-    slices = np.empty( (X,Y,a,b), dtype=np.uint8 )
-    slices_pad = np.empty( 
-        (X, Y, a+2*patch_radius, b+2*patch_radius), dtype=np.uint8
-    )
-    slices_out = np.empty_like(slices)
-
-    # break input image into slices (avoid RAM overflow)
-    ut.image2slices(im_in, im_pad, slices, slices_pad)
 
     # get NLM smoothness parameter
     h = sigma*sigma
 
-    print( f"\ttotal RAM: {total_space_gb:#.01f} GB. Max:{max_ram_gb:#.01f} GB ({num_iter} iteractions)")
-
     cur_iter = 0
-    # process each slice
-    for ii in range(X):
-        for jj in range(Y):
 
-            if ii != 0 or jj != 0:
-                print( f'\t({ii+1}, {jj+1}) of ({X}, {Y})...', end='')
-
-            # current slice and padded slice
-            cur_slice = slices[ ii, jj, :, : ]
-            cur_slice_pad = slices_pad[ ii, jj, :, : ]
-
-            # cur_slice shape
-            a, b = cur_slice.shape
-
-            # get patch array from cur_slice
-            t0 = time.time()            
-            im_patch = ut.image2patch(cur_slice, cur_slice_pad, patch_radius)
-            dif0 = time.time() - t0
+    # get patch array from cur_slice
+    t0 = time.time()            
+    im_patch = ut.image2patch(im_in, im_pad, patch_radius)
+    dif0 = time.time() - t0
             
             # get GLCM array from patch array (critical RAM point)
-            t0 = time.time()
-            glcm_patch, d_patch = patch2glcm(im_patch, a, b, levels,
-                distances, angles, props, symmetric
-            )
-            dif1 = time.time() - t0
+    t0 = time.time()
+    d_patch = patch2glcm(im_patch, m, n, levels, distances, angles, props, symmetric )
+    dif1 = time.time() - t0
 
-            if ii == 0 and jj == 0:
-                print( f'\tallocating {sys.getsizeof(glcm_patch)/1024**3:#.02f} GB for glcm_patch')
-                print( f'\t({ii+1}, {jj+1}) of ({X}, {Y})...', end='')
+    # process current slice and store it to the slice_out array
+    t0 = time.time()            
+    output = process( im_in, im_pad, d_patch, kernel,
+        window_radius, patch_radius, h, eps, distances, angles, levels
+    )
+    dif2 = time.time() - t0
 
-            # process current slice and store it to the slice_out array
-            t0 = time.time()            
-            slices_out[ ii, jj, :, : ] = process( cur_slice, cur_slice_pad, 
-                glcm_patch, d_patch, kernel, window_radius, patch_radius,
-                h, a, b, eps, distances, angles, levels
-            )
-            dif2 = time.time() - t0
-
-            cur_iter += 1
-
-            print( f'\tdone:{dif0:05.02f}s + {int(dif1//60):02d}:{int(dif1%60):02d} + {dif2:05.02f}s')
-
-    # finally, get output image from slices_out array
-    output = ut.slices2image(im_in, slices_out)
+    print( f'\tdone:{dif0:05.02f}s + {int(dif1//60):02d}:{int(dif1%60):02d} + {dif2:05.02f}s')
 
     return output
 
 @njit(nogil=True, parallel=True)
-def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius, 
-     patch_radius, h, y, x, eps, distances, angles, levels 
+def process( im_in, im_pad, d_patch, kernel, window_radius, 
+     patch_radius, h, eps, distances, angles, levels 
     ):
+
+    y, x = im_in.shape
     
     output=np.empty( (y,x), dtype=np.uint8 )
     patch_size = (2*patch_radius)+1
@@ -190,8 +144,13 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
     w2 = np.zeros((patch_size,patch_size), dtype = np.float64)
     glcm1 = np.zeros( (levels, levels), dtype=np.uint16 )
     glcm2 = np.zeros( (levels, levels), dtype=np.uint16 )
+
+    print('\tnlm-glcm: total ', y,',',x)
     
     for i in prange( y ):
+        
+        print('\t\tline ',i+1, ' out of ', y)
+
         for j in prange( x ):
 
             offset_y = i + patch_radius
@@ -212,15 +171,16 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
             average  = 0
             sweight = 0
             index_element = 0
-            patch_samples_size = ((y_max-y_min)*(x_max-x_min))-1
+            patch_samples_size = ((y_max-y_min)*(x_max-x_min)) - 1
             
             #NLM intensity weight vector  - 'w(i,j)intensity'
             intensity_weights=np.zeros((patch_samples_size), dtype=np.float64)
             center_patches=np.zeros((patch_samples_size), dtype=np.float64)
             
-            # GLCM and descriptors for central patch
-            glcm1 = glcm_patch[i, j, :, :, :, :]
+            # GLCM descriptors for central patch
             d1 = d_patch[i, j, :, :]
+
+            ###hd1 = np.histogram(d1, bins=levels)[0]
             
             #GLCM similarity weight vector - 'w(i,j)GLCM'
             similarity_weights=np.zeros((patch_samples_size), dtype=np.float64)
@@ -229,9 +189,10 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
             for r in prange( int(y_min), int(y_max) ):
                 for s in prange( int(x_min), int(x_max) ):
                     
+                    # avoiding errors
                     if( r == offset_y and s == offset_x ):
                         continue
-                    if( r >= glcm_patch.shape[0] or s >= glcm_patch.shape[1] ):
+                    if( r >= im_in.shape[0] or s >= im_in.shape[1] ):
                         continue
                     
                     #Get NLM neighbor patch in search window (original im_in)
@@ -240,47 +201,38 @@ def process( input, im_pad, glcm_patch, d_patch, kernel, window_radius,
                         s-patch_radius:s+patch_radius+1
                     ]
                     
-                    #Calculate NLM distance's weight
+                    #Calculate NLM distance weight
                     diff = np.subtract(w1,w2)
                     d = ut.calc_distance(kernel,diff)
                     w = ut.calc_weight(d,h)        
                     intensity_weights[index_element] = w 
                     center_patches[index_element] = im_pad[r,s]
                     
-                    # GLCM and descriptors for central patch
-                    glcm2 = glcm_patch[r, s, :, :, :, : ]
+                    # GLCM and descriptors for patch comparison
                     d2 = d_patch[r, s, :, :]
-                    
-                    #Calculate GLCM distance's weight [Kellah - Eq.9]
-                    dh = ut.euclidian_distance( d1, d2, eps )
-                    #dh = ut.chisquare_distance( d1, d2, eps )
+
+                    # Calculate GLCM distance weight
+                    diff_glcm = np.subtract(d1, d2)
+                    d_glcm = np.sum( diff_glcm * diff_glcm)
+                    w_glcm = ut.calc_weight( d_glcm, h )
                                         
-                    similarity_weights[index_element] = dh
-                    index_element = index_element + 1 
-
-            #Sampled standard deviation of all LBP similarity distances obtained 
-            # according to [Kellah - Eq.9].               
-            #hSi = np.std(similarity_weights) + eps
-
-            #LBP Weighting function - [Kellah - Eq.8]           
-            similarity_weights = ut.calc_weight( similarity_weights, np.sqrt(h)/20 )
-            #similarity_weights = ut.calc_weight( similarity_weights, hSi )
+                    similarity_weights[index_element] = w_glcm
+                    index_element = index_element + 1
          
-            #NLM max central pixel
+            # NLM max central pixel
             wmax = np.max(intensity_weights)
             
             #Modulated weights - [Kellah - Eq.3]
             modulated_weights = intensity_weights * similarity_weights
             average = (
-                np.sum( modulated_weights*center_patches) +
-                wmax*im_pad[offset_y,offset_x]
-            )
-            
+                np.sum( modulated_weights * center_patches) +
+                wmax * im_pad[offset_y,offset_x]
+            )            
             sweight = np.sum(modulated_weights) + wmax
             if (sweight > 0):                
                 output[i,j] = average / sweight
             else:
-                output[i,j] = input[i,j]
+                output[i,j] = im_in[i,j]
     
     return output
 
@@ -295,13 +247,13 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
      * m: int
      * n: int
      * levels: int, optional
-        The input image should contain integers in [0, `levels`-1],
+        The im_in image should contain integers in [0, `levels`-1],
          where levels indicate the number of gray-levels counted
          (typically 256 for an 8-bit image). This argument is 
          required for 16-bit images or higher and is typically the 
          maximum of the image. As the output matrix is at least 
          `levels` x `levels`, it might be preferable to use binning
-         of the input image rather than large values for `levels`.
+         of the im_in image rather than large values for `levels`.
      * distances: 1D ndarray [np.uint8]
         List of pixel pair distance offsets, in pixels, to be 
          considered at the GLCM calculus.
@@ -332,7 +284,6 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
     
     # m and n are obtained from the original (not padded ) image shape
 
-    glcm_patch = np.empty((m,n,levels,levels, distances.shape[0], angles.shape[0]), np.uint8)
     d_patch = np.empty( (m, n, len(props), distances.shape[0], angles.shape[0]), np.float64 )
     
     for ii in range(m):
@@ -340,51 +291,12 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
 
             patch = im_patch[ ii, jj, :, : ]
             glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric, normed=True)
-            glcm_patch[ii, jj, :, :, :, :] = glcm
 
-            for kk in range( len(props) ):
-                d_patch[ ii, jj, kk, :, :] = sft.greycoprops( glcm, props[kk] )
+            for pp in range( len(props) ):
+                d_patch[ ii, jj, pp, :, :] = sft.greycoprops( glcm, props[pp] )
 
-    return glcm_patch, d_patch
+    # normalizing each property individually, then map to [0,255]
+    for pp in range( len(props) ):
+        d_patch[:, :, pp, :, :] = ut.normalize_data(d_patch[:,:,pp,:,:], eps)
 
-""" 
-def calc_slices_division( num_iter, m, n):
-
-    # system:
-    #   (1) N = X*Y
-    #   (2) X/Y = m/n 
-    # Results in:
-    #   Y = sqrt( N * n/m )
-    #   X = Y*m/n
-
-    Y = int( np.ceil( np.sqrt( ( n / m ) * num_iter ) ) )
-    X = int( np.ceil( num_iter / Y ) )
-
-    return X, Y
-
-@njit(nogil=True, parallel=True)
-def props_boundaries( d_patch ):
-
-    num_props = d_patch.shape[2]
-    d_bounds = np.empty( (num_props, 2), np.float64 )
-
-    for pp in prange(num_props):
-        d_bounds[pp, 0] = np.amin( d_patch[:, :, pp, :, :])
-        d_bounds[pp, 1] = np.amax( d_patch[:, :, pp, :, :])
-    
-    return d_bounds
-
-@njit(nogil=True, parallel=True)
-def normed_props( d_vector, d_bounds, eps ):
-
-    num_props = d_vector.shape[2]
-    d_normed = np.empty_like( d_vector )
-
-    for pp in prange( num_props ):
-        
-        p_min = d_bounds[pp, 0]
-        p_max = d_bounds[pp, 1]
-
-        d_normed[:, :, pp] = abs( d_vector[:, :, pp] ) / (p_max + eps)
-    return d_normed
- """
+    return d_patch
