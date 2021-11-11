@@ -347,6 +347,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
 
     return glcm_patch, d_patch
 
+""" 
 def calc_slices_division( num_iter, m, n):
 
     # system:
@@ -360,3 +361,30 @@ def calc_slices_division( num_iter, m, n):
     X = int( np.ceil( num_iter / Y ) )
 
     return X, Y
+
+@njit(nogil=True, parallel=True)
+def props_boundaries( d_patch ):
+
+    num_props = d_patch.shape[2]
+    d_bounds = np.empty( (num_props, 2), np.float64 )
+
+    for pp in prange(num_props):
+        d_bounds[pp, 0] = np.amin( d_patch[:, :, pp, :, :])
+        d_bounds[pp, 1] = np.amax( d_patch[:, :, pp, :, :])
+    
+    return d_bounds
+
+@njit(nogil=True, parallel=True)
+def normed_props( d_vector, d_bounds, eps ):
+
+    num_props = d_vector.shape[2]
+    d_normed = np.empty_like( d_vector )
+
+    for pp in prange( num_props ):
+        
+        p_min = d_bounds[pp, 0]
+        p_max = d_bounds[pp, 1]
+
+        d_normed[:, :, pp] = abs( d_vector[:, :, pp] ) / (p_max + eps)
+    return d_normed
+ """
