@@ -6,8 +6,9 @@ import numpy as np
 from skimage import io
 from skimage.feature import greycomatrix, greycoprops
 from skimage.restoration import denoise_nl_means
-from skimage.transform import rescale
+from skimage.transform import rescale, resize
 from os.path import exists
+from nlm_lbp import nonlocal_means_lbp_original as nlm_lbp
 import nlm_glcm
 import utils as ut
 from nlm_glcm import nlm_glcm_filter
@@ -25,6 +26,15 @@ class Props(Enum):
 
     def all():
         return [prop.value['name'] for prop in Props ]
+
+def synthetic_image( img_path = 'image.jpg'):
+
+    img = np.empty((100,100), dtype=np.uint8)
+
+    for i in range(0,10):
+        img[:,10*i:10*(i+1) ] = 255*0.1*i
+
+    io.imsave('Python/testes/imagem_teste.jpg', img, quality=100)
 
 def list2str( list_in ):
     
@@ -63,7 +73,7 @@ def teste_noise_sampling():
         print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
 
 def teste2(img_in_path, test_category, test_number, sigma, props, distances, angles,
-    window_radius, patch_radius, symmetric, levels=256, plot=False, max_ram_gb=5. 
+    window_radius, patch_radius, symmetric, levels=256, plot=False, max_ram_gb=5., save=True 
  ):    
 
     # folder and output name
@@ -87,11 +97,17 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
     # read image and generate noisy version
     image = io.imread( img_in_path, as_gray=True)
-    image = ( (levels-1) * image).astype(np.uint8)
+
+    if(image.dtype != np.uint8):
+        image = ( (levels-1) * image).astype(np.uint8)
+    
+    #image = rescale(image, 100/640 )
     image_n = ut.add_gaussian_noise( image, sigma=sigma, max_gray=levels-1)
         
     # Non Local Means Algorithm
     im_nlm = denoise_nl_means(image_n, patch_radius, window_radius, sigma, preserve_range=True)
+
+    im_nlmlbp = nlm_lbp(image_n, window_radius, patch_radius, sigma, 'default', 8, 1)
     
     # NLM + GLCM proposed algorithm
     if not( exists( folder+im_name ) ):
@@ -103,8 +119,9 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
         )
         dif = time.time() - t0
 
-        # Save NLM-GLCM image to archive
-        io.imsave(folder+im_name, image_out)
+        if save:
+            # Save NLM-GLCM image to archive
+            io.imsave(folder+im_name, image_out)
 
     else:
         dif = 0
@@ -114,6 +131,7 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
     print('\tPSNR:')
     print( f'\t noisy: { ut.calculate_psnr(image, image_n) }' )
     print( f'\t NLM: {ut.calculate_psnr(image, im_nlm)}')
+    print( f'\t NLM_LBP: { ut.calculate_psnr(image, im_nlmlbp)}')
     print( f'\t NLM_GLCM: { ut.calculate_psnr(image, image_out)}')
     print( f'\t*nlm-glcm time: {int(dif//60)}:{int(dif%60):#02d}')
     print()
@@ -121,7 +139,7 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
     # Plotting
     if plot:
-        fig, axes = plt.subplots(2,2)
+        fig, axes = plt.subplots(2,3)
         ax = axes.ravel()
         ax[0].imshow(image[0:100, 0:100], cmap='gray')
         ax[0].set_title('Original')
@@ -129,22 +147,29 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
         ax[1].set_title('Noisy')
         ax[2].imshow(im_nlm[0:100, 0:100], cmap='gray')
         ax[2].set_title('NLM')
-        ax[3].imshow(image_out[0:100, 0:100], cmap='gray')
-        ax[3].set_title('Output')
+        ax[3].imshow(im_nlmlbp[0:100, 0:100], cmap='gray')
+        ax[3].set_title('NLM-LBP')
+        ax[4].imshow(image_out[0:100, 0:100], cmap='gray')
+        ax[4].set_title('NLM-GLCM')
         plt.tight_layout()
         plt.show()
 
 def combine_props_2by2():
-    img_in_path = 'Python/testes/original.jpg'
-    test_category = 15
-    test_number = 250
+
+    plot = True
+    save = False
+
+    img_in_path = 'Python/testes/imagem_teste.jpg'
+    test_category = 50
+    test_number = 301
 
     sigma = 25
-    props = [ p.value['name'] for p in [Props.CONTRAST, Props.DISSIMILARITY, Props.CORRELATION] ]
-    distances = [ 10 ]
-    angles = [ 0, np.pi/2 ]
-    window_radius = 10
-    patch_radius = 6
+    #props = [ p.value['name'] for p in [Props.CONTRAST, Props.DISSIMILARITY, Props.CORRELATION] ]
+    props = Props.all()
+    distances = [ 3 ]
+    angles = [ 0, np.pi/4, np.pi/2, 3*np.pi/4 ]
+    window_radius = 5
+    patch_radius = 3
     symmetric = True
     levels = 256
 
@@ -164,12 +189,13 @@ def combine_props_2by2():
                 symmetric, levels, False, max_ram_gb
             )
 
-            test_number += 1
+            test_number += 1\
     """
 
     teste2( img_in_path, test_category, test_number, sigma, props,
         distances, angles, window_radius, patch_radius, 
-        symmetric, levels, False, max_ram_gb
+        symmetric, levels, plot, max_ram_gb, save
     )
 
 combine_props_2by2()
+#synthetic_image()
