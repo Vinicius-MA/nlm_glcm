@@ -159,12 +159,11 @@ def combine_props_2by2():
     plot = True
     save = False
 
-    img_in_path = 'Python/testes/imagem_teste.jpg'
+    img_in_path = 'Python/testes/original.jpg'
     test_category = 50
     test_number = 301
 
     sigma = 25
-    #props = [ p.value['name'] for p in [Props.CONTRAST, Props.DISSIMILARITY, Props.CORRELATION] ]
     props = Props.all()
     distances = [ 3 ]
     angles = [ 0, np.pi/4, np.pi/2, 3*np.pi/4 ]
