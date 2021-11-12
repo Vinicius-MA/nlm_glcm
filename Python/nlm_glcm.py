@@ -115,7 +115,7 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
             
             # get GLCM array from patch array (critical RAM point)
     t0 = time.time()
-    d_patch = patch2glcm(im_patch, m, n, levels, distances, angles, props, symmetric )
+    d_patch = patch2glcm(im_patch, m, n, levels, distances, angles, props, symmetric, eps )
     dif1 = time.time() - t0
 
     # process current slice and store it to the slice_out array
@@ -237,7 +237,7 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
     return output
 
 def patch2glcm(im_patch, m, n, levels, distances, angles, props,
-     symmetric=False
+     symmetric=False, eps=10e-07
     ):
     """Performs...
 
