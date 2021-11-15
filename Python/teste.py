@@ -73,7 +73,8 @@ def teste_noise_sampling():
         print( f'>>>> total {fname} time: {diff:#.01f} s ({diff/60:#.01f} min)')
 
 def teste2(img_in_path, test_category, test_number, sigma, props, distances, angles,
-    window_radius, patch_radius, symmetric, levels=256, plot=False, max_ram_gb=5., save=True 
+    window_radius, patch_radius, symmetric, levels=256, rescale_factor=1.0,
+    plot=False, save=True , exec_nlmlbp = False
  ):    
 
     # folder and output name
@@ -97,17 +98,22 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
     # read image and generate noisy version
     image = io.imread( img_in_path, as_gray=True)
+    image = rescale(image, rescale_factor )
 
     if(image.dtype != np.uint8):
-        image = ( (levels-1) * image).astype(np.uint8)
+        image = ( (levels-1) * image).astype(np.uint8)    
     
-    #image = rescale(image, 100/640 )
     image_n = ut.add_gaussian_noise( image, sigma=sigma, max_gray=levels-1)
         
     # Non Local Means Algorithm
+    t0 = time.time()
     im_nlm = denoise_nl_means(image_n, patch_radius, window_radius, sigma, preserve_range=True)
+    dif_nlm = time.time() - t0
 
-    im_nlmlbp = nlm_lbp(image_n, window_radius, patch_radius, sigma, 'default', 8, 1)
+    t0 = time.time()
+    im_nlmlbp = ( nlm_lbp(image_n, window_radius, patch_radius, sigma, 'default', 8, 1) 
+        if exec_nlmlbp else np.zeros_like(image_n))
+    dif_lbp = time.time() - t0
     
     # NLM + GLCM proposed algorithm
     if not( exists( folder+im_name ) ):
@@ -115,31 +121,28 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
         t0 = time.time()    
         image_out = nlm_glcm_filter(image_n, window_radius, patch_radius, sigma,
             np.array(distances,np.uint8), np.array(angles, np.float64),
-            levels, props, symmetric, max_ram_gb
+            levels, props, symmetric
         )
-        dif = time.time() - t0
+        dif_glcm = time.time() - t0
 
-        if save:
-            # Save NLM-GLCM image to archive
-            io.imsave(folder+im_name, image_out)
+        if save: io.imsave(folder+im_name, image_out)
 
     else:
-        dif = 0
+        dif_glcm = 0
         image_out = io.imread( folder+im_name, as_gray=True )
 
     # Printing PSNRs and timings
     print('\tPSNR:')
     print( f'\t noisy: { ut.calculate_psnr(image, image_n) }' )
-    print( f'\t NLM: {ut.calculate_psnr(image, im_nlm)}')
-    print( f'\t NLM_LBP: { ut.calculate_psnr(image, im_nlmlbp)}')
-    print( f'\t NLM_GLCM: { ut.calculate_psnr(image, image_out)}')
-    print( f'\t*nlm-glcm time: {int(dif//60)}:{int(dif%60):#02d}')
-    print()
+    print( f'\t NLM: {ut.calculate_psnr(image, im_nlm)} in {int(dif_nlm//60)}:{dif_nlm%60:#.02f}')
+    if exec_nlmlbp: print( f'\t NLM_LBP: { ut.calculate_psnr(image, im_nlmlbp)} in {int(dif_lbp//60)}:{int(dif_lbp%60):#02d}')
+    print( f'\t NLM_GLCM: { ut.calculate_psnr(image, image_out)} in {int(dif_glcm//60)}:{int(dif_glcm%60):#02d}')
     print( 70 * '*' )
 
     # Plotting
     if plot:
         fig, axes = plt.subplots(2,3)
+        fig.suptitle('Teste')
         ax = axes.ravel()
         ax[0].imshow(image[0:100, 0:100], cmap='gray')
         ax[0].set_title('Original')
@@ -148,7 +151,7 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
         ax[2].imshow(im_nlm[0:100, 0:100], cmap='gray')
         ax[2].set_title('NLM')
         ax[3].imshow(im_nlmlbp[0:100, 0:100], cmap='gray')
-        ax[3].set_title('NLM-LBP')
+        ax[3].set_title('NLM-LBP') if exec_nlmlbp else ax[3].set_title('Not executed')
         ax[4].imshow(image_out[0:100, 0:100], cmap='gray')
         ax[4].set_title('NLM-GLCM')
         plt.tight_layout()
@@ -156,23 +159,23 @@ def teste2(img_in_path, test_category, test_number, sigma, props, distances, ang
 
 def combine_props_2by2():
 
-    plot = True
-    save = False
-
     img_in_path = 'Python/testes/original.jpg'
-    test_category = 50
-    test_number = 301
-
+    test_category = 1
+    test_number = 5
+    
+    plot = True
+    save = True
+    exec_nlmlbp = True
+    rescale_factor = 1.
+    
     sigma = 25
     props = Props.all()
-    distances = [ 3 ]
-    angles = [ 0, np.pi/4, np.pi/2, 3*np.pi/4 ]
-    window_radius = 5
-    patch_radius = 3
+    distances = [ 10 ]
+    angles = [ 3*np.pi/4 ]
+    window_radius = 10
+    patch_radius = 6
     symmetric = True
     levels = 256
-
-    max_ram_gb = 4.
 
     """
     for prop1 in Props:
@@ -193,7 +196,7 @@ def combine_props_2by2():
 
     teste2( img_in_path, test_category, test_number, sigma, props,
         distances, angles, window_radius, patch_radius, 
-        symmetric, levels, plot, max_ram_gb, save
+        symmetric, levels, rescale_factor, plot, save, exec_nlmlbp
     )
 
 combine_props_2by2()
