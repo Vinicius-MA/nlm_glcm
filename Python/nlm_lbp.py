@@ -59,7 +59,7 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     
     for i in range(y):
 
-        print('\t\tline ',i+1, ' out of ', y)
+        #print('\t\tline ',i+1, ' out of ', y)
 
         for j in range(x):
 

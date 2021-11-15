@@ -15,8 +15,7 @@ from numba import cuda, njit, prange
 import utils as ut
 
 def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma, 
-     distances, angles, levels=256, props=['contrast'],
-     symmetric=False, max_ram_gb=4.
+     distances, angles, levels=256, props=['contrast'], symmetric=False
     ) :
     """Performs the Non-Local Means with Gray-Level Co-Occurrence 
      Matrix (GLCM) weighting improvement, on 2D grayscale images.
@@ -149,7 +148,7 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
     
     for i in prange( y ):
         
-        print('\t\tline ',i+1, ' out of ', y)
+        #print('\t\tline ',i+1, ' out of ', y)
 
         for j in prange( x ):
 
@@ -179,8 +178,6 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
             
             # GLCM descriptors for central patch
             d1 = d_patch[i, j, :, :]
-
-            ###hd1 = np.histogram(d1, bins=levels)[0]
             
             #GLCM similarity weight vector - 'w(i,j)GLCM'
             similarity_weights=np.zeros((patch_samples_size), dtype=np.float64)
