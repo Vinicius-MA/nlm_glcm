@@ -10,12 +10,14 @@ import time
 
 import numpy as np
 import skimage.feature as sft
-from numba import cuda, njit, prange
+from numba import njit, prange
 
 import utils as ut
 
+from glcm_properties import Props
+
 def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma, 
-     distances, angles, levels=256, props=['contrast'], symmetric=False
+     distances, angles, levels=256, props=Props.all(), symmetric=True
     ) :
     """Performs the Non-Local Means with Gray-Level Co-Occurrence 
      Matrix (GLCM) weighting improvement, on 2D grayscale images.
@@ -84,6 +86,11 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      
      """
     
+    print( "\tstarting nlm-glcm..." )
+    
+    distances = np.array( distances, dtype=np.uint8 )
+    angles = np.array( angles, dtype=np.float64 )
+    
     # im_in image shape is (m,n)
     m = im_in.shape[0]
     n = im_in.shape[1]
@@ -124,8 +131,6 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
     )
     dif2 = time.time() - t0
 
-    print( f'\tdone:{dif0:05.02f}s + {int(dif1//60):02d}:{int(dif1%60):02d} + {dif2:05.02f}s')
-
     return output
 
 @njit(nogil=True, parallel=True)
@@ -143,8 +148,6 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
     w2 = np.zeros((patch_size,patch_size), dtype = np.float64)
     glcm1 = np.zeros( (levels, levels), dtype=np.uint16 )
     glcm2 = np.zeros( (levels, levels), dtype=np.uint16 )
-
-    print('\tnlm-glcm: total ', y,',',x)
     
     for i in prange( y ):
         
