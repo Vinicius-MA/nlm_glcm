@@ -27,6 +27,9 @@ Pt 1, vol. 8156, pp. 21–30, 2013
 """
 
 def nonlocal_means_lbp_original(input, window_radius, patch_radius, h, lbp_method, lbp_n_points, lbp_radius):
+
+    print( "\tstarting nlm-lbp..." )
+
     m,n=input.shape
     output=np.zeros((m,n), dtype = np.uint8)
     input2 = np.array(np.pad(input,(patch_radius,patch_radius), mode='symmetric'), dtype = np.float64)
@@ -49,8 +52,6 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     w2 = np.zeros((patch_size,patch_size), dtype = np.float64)
     w1_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
     w2_descriptor = np.zeros((patch_size,patch_size), dtype = np.float64)
-    
-    print('\tnlm-lbp: total ', y,',',x)
 
     #Initialing histogram distance vector (LBP)
     n_bins = lbp_n_points+2
@@ -58,8 +59,6 @@ def process(input, input2, kernel, window_radius, patch_radius, h, y, x, descrip
     h_lj =  np.zeros((n_bins,), dtype = np.float64)
     
     for i in range(y):
-
-        #print('\t\tline ',i+1, ' out of ', y)
 
         for j in range(x):
 
