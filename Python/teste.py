@@ -1,5 +1,6 @@
 import time
 from enum import Enum
+from os.path import exists
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,25 +8,15 @@ from skimage import io
 from skimage.feature import greycomatrix, greycoprops
 from skimage.restoration import denoise_nl_means
 from skimage.transform import rescale, resize
-from os.path import exists
-from nlm_lbp import nonlocal_means_lbp_original as nlm_lbp
+
 import nlm_glcm
 import utils as ut
+from glcm_properties import Props
 from nlm_glcm import nlm_glcm_filter
+from nlm_lbp import nonlocal_means_lbp_original as nlm_lbp
 from noise_sampling import BaseImage
 from nonlocal_means import nonlocal_means_original
 
-
-class Props(Enum):
-    CONTRAST        =   {"order":0, "name":"contrast"}
-    DISSIMILARITY   =   {"order":1, "name":"dissimilarity"}
-    HOMOGENEITY     =   {"order":2, "name":"homogeneity"}
-    ENERGY          =   {"order":3, "name":"energy"}
-    CORRELATION     =   {"order":4, "name":"correlation"}
-    ASM             =   {"order":5, "name":"ASM"}
-
-    def all():
-        return [prop.value['name'] for prop in Props ]
 
 def synthetic_image( img_path = 'image.jpg'):
 
