@@ -11,16 +11,20 @@ from glcm_properties import Props
 from nlm_glcm import nlm_glcm_filter
 from nlm_lbp import nonlocal_means_lbp_original as nlm_lbp_filter
 
+from skimage.restoration import denoise_nl_means
+
 ORIGINAL = "original"
 NOISY_OUT_FNAME = "noisy"
-BM3D_OUT_FNAME = "bm3d".upper()
-DA3D_OUT_FNAME = "da3d".upper()
-DDID_OUT_FNAME = "ddid".upper()
-NLDD_OUT_FNAME = "nldd".upper()
-NLM_OUT_FNAME = "nlm".upper()
+BM3D_OUT_FNAME = "bm3d"
+DA3D_OUT_FNAME = "da3d"
+DDID_OUT_FNAME = "ddid"
+NLDD_OUT_FNAME = "nldd"
+NLM_OUT_FNAME = "nlm"
 NLM_LBP_OUT_FNAME = "nlmlbp"
 NLM_GLCM_OUT_FNAME = "nlmglcm"
 
+FILTERS_IN_PYTHON = 2
+DISCONSIDER_IN_OUT = 2
 out_fname = [
     ORIGINAL,
     NOISY_OUT_FNAME, BM3D_OUT_FNAME, DA3D_OUT_FNAME, DDID_OUT_FNAME,
@@ -29,8 +33,9 @@ out_fname = [
 
 TERMINAL_OUT_CREATED_FILE = "created"
 TERMINAL_OUT_OPENED_FILE = "opened"
-SPREADSHEET_HEADER = [ "Rows", "Noisy", "NLM-LBP", "NLM-GLCM" ]
-SPREADSHEET_MEDIA = "Média"
+SPREADSHEET_HEADER = [ "Rows"]
+SPREADSHEET_HEADER.extend( out_fname[i] for i in range(1, len(out_fname)) )
+SPREADSHEET_MEDIA = "Average"
 
 class BaseImage:
 
@@ -110,6 +115,12 @@ class BaseImage:
 
                 print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" )
 
+    def generate_nlm_samples(self, window_radius=10, patch_radius=3, folder="" ):
+
+        self._generate_filter_samples( filterName=NLM_OUT_FNAME, folder=folder,
+            window_radius=window_radius, patch_radius=patch_radius
+        )
+
     def generate_nlm_lbp_samples(self, window_radius = 10, patch_radius = 6, 
         lbp_method = 'uniform', lbp_n_points = 16, lbp_radius = 2, folder="" ):
 
@@ -138,7 +149,7 @@ class BaseImage:
             origin=origin, shape=shape, startStr=startStr, sample=sample, inFolder=inFolder
         )
         
-    def generate_spreadsheet(self, fname=None, folder=""):
+    def generate_spreadsheet(self, fname=None, folder="", imageFolder=""):
 
         print( f'>>>> generate_spreadsheet:')
         
@@ -146,6 +157,9 @@ class BaseImage:
             fname = self.filename
         
         workbook = xl.Workbook()
+
+        # mean header to final row
+        meanRow = [ SPREADSHEET_MEDIA ]
 
         for ( k, sigma ) in enumerate( self.sigmaList ):
             
@@ -156,33 +170,58 @@ class BaseImage:
             currSheet = workbook[currSheetname]
             currSheet.append( SPREADSHEET_HEADER )
 
-            for row in range(self.samples):
-                
-                currRow = ( 
-                    row+1,
-                    self.noisyPsnr[k, row],
-                    self.nlmLbpPsnr[k, row],
-                    self.nlmGlcmPsnr[k, row]
+            # initialize list of psnr means
+            psnr_means = (len(out_fname)- DISCONSIDER_IN_OUT + 1 )*[0.]
+
+            for row in range( self.samples ):
+               
+                # sample number and noisy psnr to current row
+                currRow = [ row+1, self.noisyPsnr[k, row] ]
+                # noisy psnr portion to psnr means list
+                psnr_means[0] += self.noisyPsnr[k, row] / self.samples
+
+                # get other filter images, if exists
+                Y_others = np.zeros( [len(out_fname)-FILTERS_IN_PYTHON-DISCONSIDER_IN_OUT,
+                    self.im_original.shape[0], self.im_original.shape[1] ],
+                    dtype=np.uint8
                 )
-                
+                for i in range(DISCONSIDER_IN_OUT, len(out_fname)-FILTERS_IN_PYTHON ):
+                    filter_fullpath_file = (
+                        imageFolder + _get_sample_filename( f"{self.filename}.{self.extension}",
+                            sigma, row+1, out_fname[i]
+                        )
+                    )
+                    if exists( filter_fullpath_file ):
+                        Y_others[i-DISCONSIDER_IN_OUT, :, : ] = _imread( filter_fullpath_file )
+                    else:
+                        Y_others[i-DISCONSIDER_IN_OUT, :, :] = False
+                    currPsnr = ( utils.calculate_psnr( self.im_original, Y_others[i-DISCONSIDER_IN_OUT,:,:] )
+                        if ( True in ( Y_others[i-DISCONSIDER_IN_OUT, :, : ] > 0 ) )
+                        else 0
+                    )
+                    currRow.append( currPsnr )
+                    # mean update
+                    psnr_means[i-DISCONSIDER_IN_OUT+1] += currPsnr / self.samples
+                # adding NLM-LBP and NLM-GLCM to current row
+                currRow.extend( [ self.nlmLbpPsnr[k, row], self.nlmGlcmPsnr[k, row] ] )                
+                # appending current row to current sheet
                 currSheet.append( currRow )
-                print( f"\tadded to spreadsheet:\t{currRow}" )
 
-            # last row is the mean values
-            currRow = (
-                    SPREADSHEET_MEDIA,
-                    statistics.mean( self.noisyPsnr[k, :] ),
-                    statistics.mean( self.nlmLbpPsnr[k, :] ),
-                    statistics.mean( self.nlmGlcmPsnr[k, :] )
-                )
+            # NLM-LBP and NLM-GLCM means to psnr_means
+            psnr_means[ - FILTERS_IN_PYTHON : ] = [
+                statistics.mean( self.nlmLbpPsnr[k, :] ),
+                statistics.mean( self.nlmGlcmPsnr[k, :] )
+            ]
             
-            print( f"\tadded to spreadsheet:\t{currRow}" )
+            # average row extend filter means
+            meanRow.extend( psnr_means )
             
-            currSheet.append( currRow )
+            currSheet.append( meanRow )
+            print( f"\PSNR mean:\t{meanRow}" )
 
+            # saving workbook to file
             outname = f'{folder}{fname}.xlsx'
             workbook.save( outname )
-
             print( f">>>> file saved: {folder}{outname}")
 
     def set_filename(self, newfilename):
@@ -203,9 +242,7 @@ class BaseImage:
                 dtype=np.uint8
             )
             images[ 0, 0, :, :] = self.im_original
-
             sample=0
-
         elif ( filterName == NLM_GLCM_OUT_FNAME ):
             images = self.nlmGlcmImages
         elif ( filterName == NLM_LBP_OUT_FNAME ):
@@ -223,6 +260,9 @@ class BaseImage:
                     f"{self.filename}.{self.extension}", sigma, sample, filterName
                 )
 
+                if not exists( fullFilePath ):
+                    continue
+                
                 images[ k, 0, :, :] = _imread( fullFilePath )
 
                 print( f">>>> opened: {fullFilePath}" )
@@ -234,7 +274,7 @@ class BaseImage:
         ( dy, dx ) = shape
 
         # generate matrix of slices
-        if ( filterName==ORIGINAL ):
+        if ( filterName == ORIGINAL ):
             slices = np.zeros([ 1, dy, dx ], dtype=np.uint8 )
         else:
             slices = np.zeros([ len(self.sigmaList), dy, dx ], dtype=np.uint8 )
@@ -258,11 +298,11 @@ class BaseImage:
 
             print( f">>>> slice saved: {outFolder + fname} shape:( {slices[0,:,:].shape[0]}, {slices[0,:,:].shape[1]} )")
 
-    def _generate_filter_samples(self, folder="", window_radius = 10, patch_radius = 6, 
+    def _generate_filter_samples(self, folder="", window_radius=10, patch_radius=6, 
          filterName=NLM_GLCM_OUT_FNAME,
          lbp_method='uniform', lbp_n_points=16, lbp_radius=2,
          glcm_distances=[10], glcm_angles=[0], glcm_levels=256, glcm_props=Props.all(),
-         glcm_symmetric=True
+         glcm_symmetric=True, as_object=True
         ):
 
         if ( self.im_original is None ) :
@@ -313,11 +353,18 @@ class BaseImage:
                                 window_radius, patch_radius, sigma, lbp_method,
                                 lbp_n_points, lbp_radius )
                         )
+                    elif ( filterName == NLM_OUT_FNAME ):
+                        im_proc = (
+                            denoise_nl_means( im_noisy, patch_size=patch_radius, 
+                                patch_distance=window_radius, h=sigma,
+                                preserve_range=True
+                            )
+                        )
 
                     diff = time.time() - start_time
 
                     # save to file
-                    io.imsave( fullFilePath, im_proc )
+                    io.imsave( fullFilePath, im_proc.astype( np.uint8 ) )
                     
                 else:
 
@@ -343,11 +390,11 @@ class BaseImage:
                 else:
                     print( f">>>> {printStr} {folder + fname} - psnr: {psnr}" )
 
-                if (filterName == NLM_GLCM_OUT_FNAME ):
+                if (filterName == NLM_GLCM_OUT_FNAME and as_object ):
                     self.nlmGlcmImages = images
                     self.nlmGlcmPsnr = psnrs
 
-                elif ( filterName == NLM_LBP_OUT_FNAME ):
+                elif ( filterName == NLM_LBP_OUT_FNAME  and as_object ):
                     self.nlmLbpImages = images
                     self.nlmLbpPsnr = psnrs
 
