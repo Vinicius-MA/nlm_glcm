@@ -36,6 +36,7 @@ TERMINAL_OUT_OPENED_FILE = "opened"
 SPREADSHEET_HEADER = [ "Rows"]
 SPREADSHEET_HEADER.extend( out_fname[i] for i in range(1, len(out_fname)) )
 SPREADSHEET_MEDIA = "Average"
+SPREADSHEET_IMPROV = "Improvement"
 
 class BaseImage:
 
@@ -65,6 +66,8 @@ class BaseImage:
             generate both object's noisy images matrix and image file.
             - parameters:
                 folder: name of folder to save images. """
+        
+        print( f">>>> generate_noisy_samples" )
         
         if ( self.im_original is None ) :
             self.open_original()
@@ -113,7 +116,7 @@ class BaseImage:
                 psnr = utils.calculate_psnr( self.im_original, im_noisy )
                 self.noisyPsnr[k, i] = psnr
 
-                print( f">>>> {printStr} {folder + fname} - psnr: {psnr:#.03f}" )
+                print( f"\t{printStr} {folder + fname}\tpsnr: {psnr:#.04f}" )
 
     def generate_nlm_samples(self, window_radius=10, patch_radius=3, folder="" ):
 
@@ -158,10 +161,11 @@ class BaseImage:
         
         workbook = xl.Workbook()
 
-        # mean header to final row
-        meanRow = [ SPREADSHEET_MEDIA ]
-
         for ( k, sigma ) in enumerate( self.sigmaList ):
+
+            # mean and improvement headers to final rows
+            meanRow = [ SPREADSHEET_MEDIA ]
+            improvRow = [SPREADSHEET_IMPROV ]
             
             currSheetname = f'sigma_{sigma:#03d}'
 
@@ -212,27 +216,44 @@ class BaseImage:
                 statistics.mean( self.nlmLbpPsnr[k, :] ),
                 statistics.mean( self.nlmGlcmPsnr[k, :] )
             ]
+
+            # calculate improvements
+            psnr_improvs = psnr_means[:] - psnr_means[0]
             
             # average row extend filter means
             meanRow.extend( psnr_means )
-            
             currSheet.append( meanRow )
-            print( f"\PSNR mean:\t{meanRow}" )
+            # improvement row extend filter improvements
+            improvRow.extend( psnr_improvs )
+            currSheet.append( improvRow )            
+            
+            # print PSNR MEANS TABLE
+            if k == 0:
+                print(6*"\t" + "PSNR MEANS" )
+                print( "\tsigma|", end="\t" )
+                __ = [ print( SPREADSHEET_HEADER[ ii ], end="\t") for ii in range(1, len(SPREADSHEET_HEADER) ) ]
+                print()
+                print( "\t" + 72*"-")
+            print( f"\t{sigma}   |\t", end="" )
+            __ = [print( f"{meanRow[ ii ]:#.02f}", end="\t") for ii in range( 1, len(meanRow) ) ]
+            print()
 
             # saving workbook to file
             outname = f'{folder}{fname}.xlsx'
             workbook.save( outname )
-            print( f">>>> file saved: {folder}{outname}")
+        print( f"\tfile saved: {folder}{outname}")
 
     def set_filename(self, newfilename):
-        
+
         self.filename = newfilename
-    
+
     def _generate_filter_slices(self, outFolder="", filterName=NLM_GLCM_OUT_FNAME, 
          origin=(0,0), shape=(100,100), startStr="detail", sample=0, inFolder=""
         ):
         """ Execute after filtering is done """
-        
+
+        print( f">>>> _generate_filter_slices: {filterName}, origin={origin}, shape={shape}, " )
+
         if ( self.im_original is None ):
             self.open_original()
 
@@ -261,11 +282,11 @@ class BaseImage:
                 )
 
                 if not exists( fullFilePath ):
+                    print( f"\tskipping {fullFilePath}!")
                     continue
                 
                 images[ k, 0, :, :] = _imread( fullFilePath )
-
-                print( f">>>> opened: {fullFilePath}" )
+                print( f"\timage read: {fullFilePath}" )
 
             sample=0
 
@@ -290,20 +311,27 @@ class BaseImage:
                 f"{self.filename}.{self.extension}", sigma, startStr, filterName
             )
 
+            # ski if slice already exists
+            if ( exists( outFolder + fname) ):
+                print( f"\tslice exists: {outFolder + fname}" )
+                continue
+
             # save image to file
             if (filterName == ORIGINAL ):
                 io.imsave( outFolder+fname, slices[0,:,:])
             else:
                 io.imsave( outFolder+fname, slices[k,:,:])
 
-            print( f">>>> slice saved: {outFolder + fname} shape:( {slices[0,:,:].shape[0]}, {slices[0,:,:].shape[1]} )")
+            print( f"\tslice saved: {outFolder + fname} shape:( {slices[0,:,:].shape[0]}, {slices[0,:,:].shape[1]} )")
 
-    def _generate_filter_samples(self, folder="", window_radius=10, patch_radius=6, 
+    def _generate_filter_samples(self, folder="", window_radius=10, patch_radius=6,
          filterName=NLM_GLCM_OUT_FNAME,
          lbp_method='uniform', lbp_n_points=16, lbp_radius=2,
          glcm_distances=[10], glcm_angles=[0], glcm_levels=256, glcm_props=Props.all(),
          glcm_symmetric=True, as_object=True
         ):
+
+        print( f">>>> _generate_filter_slices: {filterName}, {window_radius}, {patch_radius}" )
 
         if ( self.im_original is None ) :
             self.open_original()
@@ -384,11 +412,11 @@ class BaseImage:
                     sample_time += diff
                     sigma_time += diff
 
-                    print( f">>>> {printStr} {folder + fname} - psnr: {psnr}" + 
+                    print( f"\t{printStr} {folder + fname}\tpsnr: {psnr:#.04f}" + 
                         f" - time: { int( diff // 60 ):#02d}:{ int( diff % 60 ):#02d}"
                     )
                 else:
-                    print( f">>>> {printStr} {folder + fname} - psnr: {psnr}" )
+                    print( f"\t{printStr} {folder + fname}\tpsnr: {psnr:#.04f}" )
 
                 if (filterName == NLM_GLCM_OUT_FNAME and as_object ):
                     self.nlmGlcmImages = images
@@ -399,11 +427,11 @@ class BaseImage:
                     self.nlmLbpPsnr = psnrs
 
 
-            print( f">>>>\ttotal sample time: " +
+            print( f"\t\ttotal sample time: " +
                 f"{ int( sample_time//60 ):#02d}:{ int( sample_time % 60 ):#02d}"
             )
 
-        print( f">>>>\t\ttotal sigma time: " +
+        print( f"\t\t\ttotal sigma time: " +
             f"{ int( sigma_time // 60 ):#02d}:{ int( sigma_time % 60 ):#02d}"
         )
 
