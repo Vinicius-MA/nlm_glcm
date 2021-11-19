@@ -9,16 +9,20 @@ def main():
     sigmaList = [10, 25, 50]
     
     imageInFolder = "Banco de Imagens/"
-    imageOutFolder = "Matlab/Resultados/Imagens Obtidas/"
-    slicesOutFolder = "Matlab/Resultados/Slices/"
-    spreadsheetFolder = "Python/resultados/"
+    imageNoisyFolder = "NovoNoisy/"
+    imageOutFolder = "NovoObtidas/"
+    slicesOutFolder = "NovoSlices/"
+    spreadsheetFolder = "NovoResultados/"
 
     filenames = [f'HW_C{x:#03d}_120.jpg' for x in indexes]
 
     for fname in filenames:
     
             baseImage = BaseImage( fname , sigmaList, folder=imageInFolder )
-            baseImage.generate_noisy_samples( folder=imageOutFolder )
+            baseImage.generate_noisy_samples( folder=imageNoisyFolder )
+
+            # execute NLM filtering
+            baseImage.generate_nlm_samples( folder=imageOutFolder )
             
             # execute NLM-LBP filtering
             baseImage.generate_nlm_lbp_samples( folder=imageOutFolder )
@@ -27,7 +31,7 @@ def main():
             baseImage.generate_nlm_glcm_samples( folder=imageOutFolder )
             
             # save data to spreadsheet
-            baseImage.generate_spreadsheet( folder=spreadsheetFolder )
+            baseImage.generate_spreadsheet( folder=spreadsheetFolder, imageFolder=imageOutFolder )
             
             # generate slices
             baseImage.generate_slices(outFolder=slicesOutFolder, inFolder=imageOutFolder)
