@@ -90,7 +90,7 @@ class BaseImage:
             for i in range( self.samples ):
 
                 # current noisy image file name
-                fname = get_noisy_sample_filename( f'{self.filename}.{self.extension}', sigma, i+1 )
+                fname = get_noisy_sample_filename( f'{self.filename}.{self.extension}', sigma, i )
                 fullFilePath = f'{folder}{fname}'
                 
                 if (  not( exists( fullFilePath )  ) ):
@@ -143,7 +143,7 @@ class BaseImage:
         )
 
     def generate_slices( self, outFolder="", origin=(0,0), shape=(100,100),
-         startStr="detail", sample=1, inFolder=""
+         startStr="detail", sample=0, inFolder=""
         ):
 
         for filterName in out_fname:
@@ -151,7 +151,7 @@ class BaseImage:
             self._generate_filter_slices(outFolder=outFolder, filterName=filterName,
             origin=origin, shape=shape, startStr=startStr, sample=sample, inFolder=inFolder
         )
-        
+
     def generate_spreadsheet(self, fname=None, folder="", imageFolder=""):
 
         print( f'>>>> generate_spreadsheet:')
@@ -192,17 +192,23 @@ class BaseImage:
                 for i in range(DISCONSIDER_IN_OUT, len(out_fname)-FILTERS_IN_PYTHON ):
                     filter_fullpath_file = (
                         imageFolder + _get_sample_filename( f"{self.filename}.{self.extension}",
-                            sigma, row+1, out_fname[i]
+                            sigma, row, out_fname[i]
                         )
                     )
                     if exists( filter_fullpath_file ):
-                        Y_others[i-DISCONSIDER_IN_OUT, :, : ] = _imread( filter_fullpath_file )
+                        Y_others[i-DISCONSIDER_IN_OUT, :, :] = _imread( filter_fullpath_file )
+                        print( f"\timread: {filter_fullpath_file}", end="\t")
                     else:
                         Y_others[i-DISCONSIDER_IN_OUT, :, :] = False
-                    currPsnr = ( utils.calculate_psnr( self.im_original, Y_others[i-DISCONSIDER_IN_OUT,:,:] )
-                        if ( True in ( Y_others[i-DISCONSIDER_IN_OUT, :, : ] > 0 ) )
+                        print( f"\tskipped: {filter_fullpath_file}", end="\t")
+                    
+                    currPsnr = ( utils.calculate_psnr( self.im_original, Y_others[i-DISCONSIDER_IN_OUT, :, :] )
+                        if ( True in ( Y_others[i-DISCONSIDER_IN_OUT, :, :] > 0 ) )
                         else 0
                     )
+
+                    print( f"psnr : {currPsnr:#.04f}")
+
                     currRow.append( currPsnr )
                     # mean update
                     psnr_means[i-DISCONSIDER_IN_OUT+1] += currPsnr / self.samples
@@ -225,23 +231,13 @@ class BaseImage:
             currSheet.append( meanRow )
             # improvement row extend filter improvements
             improvRow.extend( psnr_improvs )
-            currSheet.append( improvRow )            
-            
-            # print PSNR MEANS TABLE
-            if k == 0:
-                print(6*"\t" + "PSNR MEANS" )
-                print( "\tsigma|", end="\t" )
-                __ = [ print( SPREADSHEET_HEADER[ ii ], end="\t") for ii in range(1, len(SPREADSHEET_HEADER) ) ]
-                print()
-                print( "\t" + 72*"-")
-            print( f"\t{sigma}   |\t", end="" )
-            __ = [print( f"{meanRow[ ii ]:#.02f}", end="\t") for ii in range( 1, len(meanRow) ) ]
-            print()
+            currSheet.append( improvRow )
 
             # saving workbook to file
             outname = f'{folder}{fname}.xlsx'
             workbook.save( outname )
-        print( f"\tfile saved: {folder}{outname}")
+        
+        print( f"\tfile saved: {outname}")
 
     def set_filename(self, newfilename):
 
@@ -252,7 +248,7 @@ class BaseImage:
         ):
         """ Execute after filtering is done """
 
-        print( f">>>> _generate_filter_slices: {filterName}, origin={origin}, shape={shape}, " )
+        print( f">>>> _generate_filter_slices: {filterName}, origin={origin}, shape={shape}, sample={sample}" )
 
         if ( self.im_original is None ):
             self.open_original()
@@ -286,7 +282,6 @@ class BaseImage:
                     continue
                 
                 images[ k, 0, :, :] = _imread( fullFilePath )
-                print( f"\timage read: {fullFilePath}" )
 
             sample=0
 
@@ -308,10 +303,10 @@ class BaseImage:
                 slices[ k, :, : ] = images[ k, sample, y0: y0+dy , x0 : x0+dx ]
             
             fname = _get_slice_filename(
-                f"{self.filename}.{self.extension}", sigma, startStr, filterName
+                f"{self.filename}.{self.extension}",sigma, sample, startStr, filterName
             )
 
-            # ski if slice already exists
+            # skip if slice already exists
             if ( exists( outFolder + fname) ):
                 print( f"\tslice exists: {outFolder + fname}" )
                 continue
@@ -331,7 +326,7 @@ class BaseImage:
          glcm_symmetric=True, as_object=True
         ):
 
-        print( f">>>> _generate_filter_slices: {filterName}, {window_radius}, {patch_radius}" )
+        print( f">>>> _generate_filter_samples: {filterName}, {window_radius}, {patch_radius}" )
 
         if ( self.im_original is None ) :
             self.open_original()
@@ -356,8 +351,8 @@ class BaseImage:
 
             for i in range( self.samples ):
 
-                # current processed image file name
-                fname = _get_sample_filename(f'{self.filename}.{self.extension}', sigma, i+1, filterName)
+                # current processed image file name (sample is passed as matriz index, not filenumbering)
+                fname = _get_sample_filename(f'{self.filename}.{self.extension}', sigma, i, filterName)
                 fullFilePath = f'{folder}{fname}'
 
                 if( not( exists( fullFilePath) ) ):
@@ -385,7 +380,7 @@ class BaseImage:
                         im_proc = (
                             denoise_nl_means( im_noisy, patch_size=patch_radius, 
                                 patch_distance=window_radius, h=sigma,
-                                preserve_range=True
+                                fast_mode=False, preserve_range=True
                             )
                         )
 
@@ -453,14 +448,12 @@ def get_nlm_lbp_slice_filename( filename, sigma, startStr="detail" ):
 def get_nlm_glcm_slice_filename( filename, sigma, startStr="detail"):
     return _get_slice_filename(filename, sigma, startStr, NLM_GLCM_OUT_FNAME )
 
-def _get_slice_filename( filename, sigma, startStr="detail", endStr="" ):
+def _get_slice_filename( filename, sigma, sample=0, startStr="detail", endStr="" ):
     """  """
 
-    return f"{startStr}_" + filename.replace(".",
-        f"_sigma{sigma:#03d}_{endStr}."
-    )
+    return _get_sample_filename( filename, sigma, sample, endStr, startStr+"_", False )
 
-def _get_sample_filename(filename, sigma, sample, endStr="" ):
+def _get_sample_filename(filename, sigma, sample, endStr="", startStr="", bypassOriginal=True ):
     """ _get_sample_filename()
         Creates a new filename string adding the input information onto the
          filename string.
@@ -468,15 +461,18 @@ def _get_sample_filename(filename, sigma, sample, endStr="" ):
             filename: original filename, used as base for output
             sigma: sigma to be inserted onto the output string;
             sample: index of the sampled file that will receive this function's
-             output string;
+             output string 
+             (IMPORTANT: must pass the python matrix index (starts with 0, ends
+              with n-1), not the file-related index (starts with 1,ends with n
+              ). The conversion to filename is made inside this function);
             endStr: final part of the output that indicates what type of image
              is that (e.g 'noisy', 'nlmlbp')."""
 
-    if endStr == ORIGINAL:
+    if endStr == ORIGINAL and bypassOriginal:
         return filename
     
-    return filename.replace(".",
-            f"_sigma{sigma:#03d}_{sample:#02d}_{endStr}."
+    return startStr + filename.replace(".",
+            f"_sigma{sigma:#03d}_{sample+1:#02d}_{endStr}."
         )
 
 def _imread( fullFilePath ):
