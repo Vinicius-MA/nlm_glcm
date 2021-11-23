@@ -7,12 +7,12 @@ def main():
 
     indexes = [1, 2, 4, 9, 11, 12, 13, 15, 16, 17, 19, 24]
     sigmaList = [10, 25, 50]
-    
-    imageInFolder = "Banco de Imagens/"
-    imageNoisyFolder = "NovoNoisy/"
-    imageOutFolder = "NovoObtidas/"
-    slicesOutFolder = "NovoSlices/"
-    spreadsheetFolder = "NovoResultados/"
+
+    imageInFolder = "image-database/"
+    imageNoisyFolder = "images-noisy/"
+    imageOutFolder = "images-output/"
+    slicesOutFolder = "slices/"
+    spreadsheetFolder = "results-partial/"
 
     filenames = [f'HW_C{x:#03d}_120.jpg' for x in indexes]
 
