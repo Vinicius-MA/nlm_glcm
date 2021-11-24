@@ -19,7 +19,7 @@ BM3D_OUT_FNAME = "bm3d"
 DA3D_OUT_FNAME = "da3d"
 DDID_OUT_FNAME = "ddid"
 NLDD_OUT_FNAME = "nldd"
-NLM_OUT_FNAME = "nlm"
+NLM_OUT_FNAME = "nlm"       # fast non-local means
 NLM_LBP_OUT_FNAME = "nlmlbp"
 NLM_GLCM_OUT_FNAME = "nlmglcm"
 
@@ -380,7 +380,7 @@ class BaseImage:
                         im_proc = (
                             denoise_nl_means( im_noisy, patch_size=patch_radius, 
                                 patch_distance=window_radius, h=sigma,
-                                fast_mode=False, preserve_range=True
+                                fast_mode=True, preserve_range=True
                             )
                         )
 
