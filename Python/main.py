@@ -7,6 +7,7 @@ def main():
 
     indexes = [1, 2, 4, 9, 11, 12, 13, 15, 16, 17, 19, 24]
     sigmaList = [10, 25, 50]
+    samples = 10
 
     imageInFolder = "image-database/"
     imageNoisyFolder = "images-noisy/"
@@ -18,7 +19,7 @@ def main():
 
     for fname in filenames:
     
-            baseImage = BaseImage( fname , sigmaList, folder=imageInFolder )
+            baseImage = BaseImage( filename=fname , sigmaList=sigmaList, samples=samples, folder=imageInFolder )
             baseImage.generate_noisy_samples( folder=imageNoisyFolder )
 
             # execute NLM filtering

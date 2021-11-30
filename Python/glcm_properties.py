@@ -8,8 +8,14 @@ class Props(Enum):
     CORRELATION     =   {"order":4, "name":"correlation"}
     ASM             =   {"order":5, "name":"ASM"}
 
-    def get_list( props ):
-        return [prop.value["name"] for prop in props]
+    def get_list( props, order=False ):
+        if order:
+            return [prop.value["order"] for prop in props]
+        else:
+            return [prop.value["name"] for prop in props]
     
-    def all():
-        return [prop.value["name"] for prop in Props ]
+    def all( order=False):
+        if order:
+            return [prop.value["order"] for prop in Props]
+        else:
+            return [prop.value["name"] for prop in Props ]

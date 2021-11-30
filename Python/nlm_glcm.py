@@ -16,7 +16,7 @@ import utils as ut
 
 from glcm_properties import Props
 
-def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma, 
+def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      distances, angles, levels=256, props=Props.all(), symmetric=True
     ) :
     """Performs the Non-Local Means with Gray-Level Co-Occurrence 
@@ -119,7 +119,7 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
     im_patch = ut.image2patch(im_in, im_pad, patch_radius)
     dif0 = time.time() - t0
             
-            # get GLCM array from patch array (critical RAM point)
+    # get GLCM array from patch array (critical RAM point)
     t0 = time.time()
     d_patch = patch2glcm(im_patch, m, n, levels, distances, angles, props, symmetric, eps )
     dif1 = time.time() - t0
@@ -295,7 +295,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
             for pp in range( len(props) ):
                 d_patch[ ii, jj, pp, :, :] = sft.greycoprops( glcm, props[pp] )
 
-    # normalizing each property individually, then map to [0,255]
+    # normalizing each property individually
     for pp in range( len(props) ):
         d_patch[:, :, pp, :, :] = ut.normalize_data(d_patch[:,:,pp,:,:], eps)
 

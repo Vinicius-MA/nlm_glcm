@@ -315,3 +315,16 @@ def slices2image( im_in, slices ):
                 )
 
     return im_out
+
+def list2str( list_in ):
+    
+    list_str = '['
+    
+    for l in list_in:
+        list_str += f'{l:#.02f}'
+
+        if l < len(list_in) - 1:
+            list_str += f', '
+    list_str += ']'
+
+    return list_str

@@ -12,6 +12,7 @@ from nlm_glcm import nlm_glcm_filter
 from nlm_lbp import nonlocal_means_lbp_original as nlm_lbp_filter
 
 from skimage.restoration import denoise_nl_means
+from skimage.metrics import structural_similarity as ssim
 
 ORIGINAL = "original"
 NOISY_OUT_FNAME = "noisy"
@@ -118,10 +119,10 @@ class BaseImage:
 
                 print( f"\t{printStr} {folder + fname}\tpsnr: {psnr:#.04f}" )
 
-    def generate_nlm_samples(self, window_radius=10, patch_radius=3, folder="" ):
+    def generate_nlm_samples(self, window_radius=10, patch_radius=3, folder="", fast_mode=True ):
 
         self._generate_filter_samples( filterName=NLM_OUT_FNAME, folder=folder,
-            window_radius=window_radius, patch_radius=patch_radius
+            nlm_fast=fast_mode, window_radius=window_radius, patch_radius=patch_radius
         )
 
     def generate_nlm_lbp_samples(self, window_radius = 10, patch_radius = 6, 
@@ -162,27 +163,23 @@ class BaseImage:
         workbook = xl.Workbook()
 
         for ( k, sigma ) in enumerate( self.sigmaList ):
-
-            # mean and improvement headers to final rows
-            meanRow = [ SPREADSHEET_MEDIA ]
-            improvRow = [SPREADSHEET_IMPROV ]
             
             currSheetname = f'sigma_{sigma:#03d}'
 
             # prepare workbook
             workbook.create_sheet( currSheetname )
-            currSheet = workbook[currSheetname]
+            currSheet = workbook[currSheetname]            
+
+            # PSNR
+            currSheet.append( ["PSNR [dB]"])
             currSheet.append( SPREADSHEET_HEADER )
-
-            # initialize list of psnr means
-            psnr_means = (len(out_fname)- DISCONSIDER_IN_OUT + 1 )*[0.]
-
             for row in range( self.samples ):
                
                 # sample number and noisy psnr to current row
-                currRow = [ row+1, self.noisyPsnr[k, row] ]
-                # noisy psnr portion to psnr means list
-                psnr_means[0] += self.noisyPsnr[k, row] / self.samples
+                currIm = self.noisyImages[k, row, :, :]
+                currPsnr = utils.calculate_psnr( self.im_original, currIm )
+                
+                currRow = [ row+1, currPsnr ]
 
                 # get other filter images, if exists
                 Y_others = np.zeros( [len(out_fname)-FILTERS_IN_PYTHON-DISCONSIDER_IN_OUT,
@@ -196,42 +193,80 @@ class BaseImage:
                         )
                     )
                     if exists( filter_fullpath_file ):
-                        Y_others[i-DISCONSIDER_IN_OUT, :, :] = _imread( filter_fullpath_file )
-                        print( f"\timread: {filter_fullpath_file}", end="\t")
+                        Y_others[i-DISCONSIDER_IN_OUT-1, :, :] = _imread( filter_fullpath_file )
                     else:
-                        Y_others[i-DISCONSIDER_IN_OUT, :, :] = False
-                        print( f"\tskipped: {filter_fullpath_file}", end="\t")
+                        Y_others[i-DISCONSIDER_IN_OUT-1, :, :] = False
+                    currIm = Y_others[i-DISCONSIDER_IN_OUT-1, :, :]
                     
-                    currPsnr = ( utils.calculate_psnr( self.im_original, Y_others[i-DISCONSIDER_IN_OUT, :, :] )
-                        if ( True in ( Y_others[i-DISCONSIDER_IN_OUT, :, :] > 0 ) )
+                    currPsnr = ( utils.calculate_psnr( self.im_original, currIm )
+                        if ( True in ( currIm > 0 ) )
                         else 0
                     )
 
-                    print( f"psnr : {currPsnr:#.04f}")
+                    currIm = Y_others[i-DISCONSIDER_IN_OUT-1,:,:]
+                    currSsim = ( ssim( self.im_original, currIm, data_range= np.amax(currIm)-np.amin(currIm)))
 
                     currRow.append( currPsnr )
-                    # mean update
-                    psnr_means[i-DISCONSIDER_IN_OUT+1] += currPsnr / self.samples
                 # adding NLM-LBP and NLM-GLCM to current row
-                currRow.extend( [ self.nlmLbpPsnr[k, row], self.nlmGlcmPsnr[k, row] ] )                
+                currRow.extend( [ self.nlmLbpPsnr[k, row], self.nlmGlcmPsnr[k, row] ] )
                 # appending current row to current sheet
                 currSheet.append( currRow )
 
-            # NLM-LBP and NLM-GLCM means to psnr_means
-            psnr_means[ - FILTERS_IN_PYTHON : ] = [
-                statistics.mean( self.nlmLbpPsnr[k, :] ),
-                statistics.mean( self.nlmGlcmPsnr[k, :] )
-            ]
-
-            # calculate improvements
-            psnr_improvs = psnr_means[:] - psnr_means[0]
             
-            # average row extend filter means
-            meanRow.extend( psnr_means )
-            currSheet.append( meanRow )
-            # improvement row extend filter improvements
-            improvRow.extend( psnr_improvs )
-            currSheet.append( improvRow )
+        for ( k, sigma ) in enumerate( self.sigmaList ):
+            
+            currSheetname = f'sigma_{sigma:#03d}'
+            currSheet = workbook[currSheetname] 
+
+            #   SSIM
+            currSheet.append([""])
+            currSheet.append(["SSIM"])
+            currSheet.append( SPREADSHEET_HEADER )
+            for row in range( self.samples ):
+            
+                # sample number and noisy psnr to current row
+                currIm = self.noisyImages[k, row, :, :]
+                currSsim = ssim( self.im_original, currIm, data_range= np.amax(currIm)-np.amin(currIm) )
+                
+                currRow = [ row+1, currSsim]
+
+                print( f"\tNoisy image:\t\t\t\t\t\t\tpsnr: {self.noisyPsnr[k, row]:#.04f}\tssim: {currSsim:#.04f}")
+
+                # get other filter images, if exists
+                Y_others = np.zeros( [len(out_fname)-DISCONSIDER_IN_OUT,
+                    self.im_original.shape[0], self.im_original.shape[1] ],
+                    dtype=np.uint8
+                )
+                for i in range(DISCONSIDER_IN_OUT, len(out_fname) ):
+                    filter_fullpath_file = (
+                        imageFolder + _get_sample_filename( f"{self.filename}.{self.extension}",
+                            sigma, row, out_fname[i]
+                        )
+                    )
+                    if exists( filter_fullpath_file ):
+                        Y_others[i-DISCONSIDER_IN_OUT-1, :, :] = _imread( filter_fullpath_file )
+                        print( f"\timread: {filter_fullpath_file}", end="\t")
+                    else:
+                        Y_others[i-DISCONSIDER_IN_OUT-1, :, :] = False
+                        print( f"\tskipped: {filter_fullpath_file}", end="\t")
+
+                    currIm = Y_others[i-DISCONSIDER_IN_OUT-1,:,:]
+                    currSsim = ( ssim( self.im_original, currIm, data_range= np.amax(currIm)-np.amin(currIm))
+                        if ( True in ( currIm > 0 ) )
+                        else 0
+                    )
+
+                    currPsnr = ( utils.calculate_psnr( self.im_original, currIm )
+                        if ( True in ( currIm > 0 ) )
+                        else 0
+                    )
+
+                    print( f"\tpsnr :{currPsnr:#.04f}\tssim: {currSsim:#.04f}")
+
+                    currRow.append( currSsim )
+
+                # appending current row to current sheet
+                currSheet.append( currRow )
 
             # saving workbook to file
             outname = f'{folder}{fname}.xlsx'
@@ -320,7 +355,7 @@ class BaseImage:
             print( f"\tslice saved: {outFolder + fname} shape:( {slices[0,:,:].shape[0]}, {slices[0,:,:].shape[1]} )")
 
     def _generate_filter_samples(self, folder="", window_radius=10, patch_radius=6,
-         filterName=NLM_GLCM_OUT_FNAME,
+         filterName=NLM_GLCM_OUT_FNAME, nlm_fast=True,
          lbp_method='uniform', lbp_n_points=16, lbp_radius=2,
          glcm_distances=[10], glcm_angles=[0], glcm_levels=256, glcm_props=Props.all(),
          glcm_symmetric=True, as_object=True
@@ -372,15 +407,14 @@ class BaseImage:
                         )
                     elif ( filterName == NLM_LBP_OUT_FNAME ):
                         im_proc =  (
-                            nlm_lbp_filter( im_noisy,
-                                window_radius, patch_radius, sigma, lbp_method,
-                                lbp_n_points, lbp_radius )
+                            nlm_lbp_filter( im_noisy, window_radius, patch_radius, sigma,
+                                lbp_method, lbp_n_points, lbp_radius )
                         )
                     elif ( filterName == NLM_OUT_FNAME ):
                         im_proc = (
                             denoise_nl_means( im_noisy, patch_size=patch_radius, 
                                 patch_distance=window_radius, h=sigma,
-                                fast_mode=True, preserve_range=True
+                                fast_mode=nlm_fast, preserve_range=True
                             )
                         )
 
