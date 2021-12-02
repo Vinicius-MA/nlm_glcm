@@ -169,7 +169,7 @@ class BaseImage:
             fname = self.filename
         # create workbook object
         workbook = xl.Workbook()
-        # interating through sigmas
+        # PSNR LOOP
         for ( k, sigma ) in enumerate( self.sigma_list ):
             # current sheet name
             curr_sheet_name = f"sigma_{sigma:#03d}"
@@ -216,7 +216,7 @@ class BaseImage:
                 curr_row.extend( [ self.nlmlbp_psnr[k, row], self.nlmglcm_psnr[k, row] ] )
                 # appending current row to current sheet
                 curr_sheet.append( curr_row )
-            
+        # SSIM LOOP
         for ( k, sigma ) in enumerate( self.sigma_list ):
             curr_sheet_name = f'sigma_{sigma:#03d}'
             curr_sheet = workbook[curr_sheet_name]
@@ -240,39 +240,37 @@ class BaseImage:
                 )
                 for i in range(DISCONSIDER_IN_OUT, len(OUT_FNAMES) ):
                     fullpath = (
-                        image_folder + _get_sample_filename( f"{self.filename}.{self.in_ext}",
-                            sigma, row, OUT_FNAMES[i]
-                        )
-                    )
+                        image_folder + _get_sample_filename( f"{self.filename}.{self.out_ext}",
+                        sigma, row, OUT_FNAMES[i] ) )
+                    # open it if exists
                     if exists( fullpath ):
                         filter_images[i-DISCONSIDER_IN_OUT-1, :, :] = _imread( fullpath )
                         print( f"\timread: {fullpath}", end="\t")
+                    elif exists( fullpath.replace(self.out_ext, self.in_ext ) ):
+                        fullpath = fullpath.replace(self.out_ext, self.in_ext )
+                        filter_images[i-DISCONSIDER_IN_OUT-1, :, :] = _imread( fullpath )
+                        print( f"\timread: {fullpath}", end="\t")
+                    # else, consider it False
                     else:
                         filter_images[i-DISCONSIDER_IN_OUT-1, :, :] = False
                         print( f"\tskipped: {fullpath}", end="\t")
-
-                    curr_image = filter_images[i-DISCONSIDER_IN_OUT-1,:,:]
+                    # declare current image, calculates psnr and ssim (if exists image)
+                    curr_image = filter_images[i-DISCONSIDER_IN_OUT-1, :, :]
                     curr_ssim = ( ssim( self.im_original, curr_image, data_range= np.amax(curr_image)-np.amin(curr_image))
                         if ( True in ( curr_image > 0 ) )
-                        else 0
-                    )
-
+                        else -1 )
                     curr_psnr = ( utils.calculate_psnr( self.im_original, curr_image )
                         if ( True in ( curr_image > 0 ) )
-                        else 0
-                    )
-
+                        else -1 )
                     print( f"\tpsnr :{curr_psnr:#.04f}\tssim: {curr_ssim:#.04f}")
-
+                    # append current ssim to current row
                     curr_row.append( curr_ssim )
-
                 # appending current row to current sheet
                 curr_sheet.append( curr_row )
-
             # saving workbook to file
-            outname = f'{sheet_folder}{fname}.xlsx'
+            outname = f'{sheet_folder}{fname}.ods'
             workbook.save( outname )
-        
+        # print out
         print( f"\tfile saved: {outname}")
 
     def set_filename(self, newfilename):
@@ -339,7 +337,7 @@ class BaseImage:
                 slices[ k, :, : ] = images[ k, sample, y0: y0+dy , x0 : x0+dx ]
             
             fname = _get_slice_filename(
-                f"{self.filename}.{self.in_ext}",sigma, sample, start_str, filter_name
+                f"{self.filename}.{self.out_ext}",sigma, sample, start_str, filter_name
             )
 
             # skip if slice already exists
@@ -364,11 +362,11 @@ class BaseImage:
 
         print( f">>>> _generate_filter_samples: {filter_name}, {window_radius}, {patch_radius}" )
 
-        if ( self.im_original is None ) :
+        if self.im_original is None :
             self.open_original()
 
         # Generate Matrix of Processed Images
-        images = np.zeros( [ len( self.sigma_list ), self.samples, 
+        images = np.zeros( [ len( self.sigma_list ), self.samples,
             self.im_original.shape[0], self.im_original.shape[1] ],
             dtype=np.uint8
         )
@@ -388,7 +386,7 @@ class BaseImage:
             for i in range( self.samples ):
 
                 # current processed image file name (sample is passed as matriz index, not filenumbering)
-                fname = _get_sample_filename(f'{self.filename}.{self.in_ext}', sigma, i, filter_name)
+                fname = _get_sample_filename(f'{self.filename}.{self.out_ext}', sigma, i, filter_name)
                 full_path = f'{folder}{fname}'
 
                 if( not( exists( full_path) ) ):
@@ -413,7 +411,7 @@ class BaseImage:
                         )
                     elif ( filter_name == NLM_OUT_FNAME ):
                         im_proc = (
-                            denoise_nl_means( im_noisy, patch_size=patch_radius, 
+                            denoise_nl_means( im_noisy, patch_size=patch_radius,
                                 patch_distance=window_radius, h=sigma,
                                 fast_mode=nlm_fast, preserve_range=True
                             )
