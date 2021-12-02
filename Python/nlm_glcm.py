@@ -14,6 +14,43 @@ from numba import njit, prange
 
 import utils as ut
 
+class Props(Enum):
+    """ Description """
+
+    CONTRAST        =   {"order":0, "name":"contrast"}
+    DISSIMILARITY   =   {"order":1, "name":"dissimilarity"}
+    HOMOGENEITY     =   {"order":2, "name":"homogeneity"}
+    ENERGY          =   {"order":3, "name":"energy"}
+    CORRELATION     =   {"order":4, "name":"correlation"}
+    ASM             =   {"order":5, "name":"ASM"}
+
+    @staticmethod
+    def get_list( props, order=False ):
+        """ Description """
+
+        if order:
+            return [prop.value["order"] for prop in props]
+        else:
+            return [prop.value["name"] for prop in props]
+
+    @staticmethod
+    def all( order=False):
+        """ Description """
+
+        if order:
+            return [prop.value["order"] for prop in Props]
+        else:
+            return [prop.value["name"] for prop in Props ]
+    
+    @staticmethod
+    def best( order=False ):
+        """ Description """
+
+        best_props = [ Props.HOMOGENEITY, Props.ENERGY ]
+        if order:
+            return [prop.value["order"] for prop in best_props]
+        else:
+            return [prop.value["name"] for prop in best_props ]
 
 def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
      distances, angles, levels=256, props=Props.all(), symmetric=True
@@ -283,30 +320,3 @@ def greycoprops_limits(props, levels=256 ):
         elif prop in Props.get_list([Props.CORRELATION]) :
             f_hat[p_idx, :] = [-1, 1]
     return f_hat
-class Props(Enum):
-    """ Description """
-
-    CONTRAST        =   {"order":0, "name":"contrast"}
-    DISSIMILARITY   =   {"order":1, "name":"dissimilarity"}
-    HOMOGENEITY     =   {"order":2, "name":"homogeneity"}
-    ENERGY          =   {"order":3, "name":"energy"}
-    CORRELATION     =   {"order":4, "name":"correlation"}
-    ASM             =   {"order":5, "name":"ASM"}
-
-    @staticmethod
-    def get_list( props, order=False ):
-        """ Description """
-
-        if order:
-            return [prop.value["order"] for prop in props]
-        else:
-            return [prop.value["name"] for prop in props]
-
-    @staticmethod
-    def all( order=False):
-        """ Description """
-
-        if order:
-            return [prop.value["order"] for prop in Props]
-        else:
-            return [prop.value["name"] for prop in Props ]
