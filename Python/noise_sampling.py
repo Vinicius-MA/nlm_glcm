@@ -61,7 +61,7 @@ class BaseImage:
         self.nlmlbp_images = None
         self.nlmglcm_images = None
         self.nlmlbp_psnr = None
-        self.nlmglcm_psnr
+        self.nlmglcm_psnr = None
 
     def open_original(self):
         """
@@ -131,8 +131,8 @@ class BaseImage:
             window_radius=window_radius, patch_radius=patch_radius,
             lbp_method=lbp_method, lbp_n_points=lbp_n_points, lbp_radius=lbp_radius )
 
-    def generate_nlm_glcm_samples(self, window_radius=10, patch_radius=6, distances=[10],
-         angles=[0], levels=256, props=Props.all(), symmetric=True, folder=""
+    def generate_nlm_glcm_samples(self, window_radius=10, patch_radius=6, distances=[7],
+         angles=[3*np.pi/4], levels=256, props=Props.best(), symmetric=True, folder=""
         ):
         """
             Description
@@ -144,7 +144,7 @@ class BaseImage:
             glcm_props=props, glcm_symmetric=symmetric
         )
 
-    def generate_slices( self, out_folder="", origin=(0,0), shape=(100,100),
+    def generate_slices( self, out_folder="", origin=(0,0), shape=(150,150),
          start_str="detail", sample=0, in_folder=""
         ):
         """
@@ -278,7 +278,7 @@ class BaseImage:
         self.filename = newfilename
 
     def _generate_filter_slices(self, out_folder="", filter_name=NLM_GLCM_OUT_FNAME, 
-         origin=(0,0), shape=(100,100), start_str="detail", sample=0, in_folder=""
+         origin=(0,0), shape=(150,150), start_str="detail", sample=0, in_folder=""
         ):
         """ Execute after filtering is done """
 
@@ -399,6 +399,7 @@ class BaseImage:
                     start_time = time.time()
                     
                     if ( filter_name == NLM_GLCM_OUT_FNAME):
+                        print( f"\t{glcm_distances}\t{utils.list2str(glcm_angles)},{glcm_props},{glcm_symmetric}")
                         im_proc =  (
                             nlm_glcm_filter(im_noisy, window_radius, patch_radius, sigma,
                                 glcm_distances, glcm_angles, glcm_levels,
