@@ -283,21 +283,30 @@ def greycoprops_limits(props, levels=256 ):
         elif prop in Props.get_list([Props.CORRELATION]) :
             f_hat[p_idx, :] = [-1, 1]
     return f_hat
-    already_normed = Props.get_list(
-        [Props.HOMOGENEITY, Props.ENERGY, Props.ASM]
-    )
-    
-    for pp, prop in enumerate(props):
+class Props(Enum):
+    """ Description """
 
-       # already normalized properties
-        if prop in already_normed:
-           output[pp, :] = [0, 1]
-        elif prop in Props.get_list([Props.CONTRAST]):
-            output[pp, :] = [0, (levels-1)**2 ]
-        elif prop in Props.get_list([Props.DISSIMILARITY]):
-            output[pp, :] = [0, (levels-1) ]
-        elif prop in Props.get_list([Props.CORRELATION]):
-            output[pp, :] = [-1, 1]
+    CONTRAST        =   {"order":0, "name":"contrast"}
+    DISSIMILARITY   =   {"order":1, "name":"dissimilarity"}
+    HOMOGENEITY     =   {"order":2, "name":"homogeneity"}
+    ENERGY          =   {"order":3, "name":"energy"}
+    CORRELATION     =   {"order":4, "name":"correlation"}
+    ASM             =   {"order":5, "name":"ASM"}
 
-    return output
+    @staticmethod
+    def get_list( props, order=False ):
+        """ Description """
 
+        if order:
+            return [prop.value["order"] for prop in props]
+        else:
+            return [prop.value["name"] for prop in props]
+
+    @staticmethod
+    def all( order=False):
+        """ Description """
+
+        if order:
+            return [prop.value["order"] for prop in Props]
+        else:
+            return [prop.value["name"] for prop in Props ]
