@@ -212,7 +212,7 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
                     d2 = d_patch[r, s, :, :]
 
                     # Calculate GLCM distance weight
-                    diff_glcm = np.subtract(d1, d2)
+                    diff_glcm = 255*np.subtract(d1, d2)
                     d_glcm = np.sum( diff_glcm * diff_glcm)
                     w_glcm = ut.calc_weight( d_glcm, h )
                                         
@@ -285,6 +285,7 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
     # m and n are obtained from the original (not padded ) image shape
 
     d_patch = np.empty( (m, n, len(props), distances.shape[0], angles.shape[0]), np.float64 )
+    limits = greycoprops_limits(props, levels)
     
     for ii in range(m):
         for jj in range(n):
@@ -292,11 +293,34 @@ def patch2glcm(im_patch, m, n, levels, distances, angles, props,
             patch = im_patch[ ii, jj, :, : ]
             glcm = sft.greycomatrix(patch, distances, angles, levels, symmetric, normed=True)
 
+            # get normalized properties
             for pp in range( len(props) ):
-                d_patch[ ii, jj, pp, :, :] = sft.greycoprops( glcm, props[pp] )
-
-    # normalizing each property individually
-    for pp in range( len(props) ):
-        d_patch[:, :, pp, :, :] = ut.normalize_data(d_patch[:,:,pp,:,:], eps)
+                value = sft.greycoprops(glcm, props[pp])
+                d_patch[ ii, jj, pp, :, :] = (
+                    ( value - limits[pp, 0] ) / ( limits[pp, 1] - limits[pp, 0] )
+                )
 
     return d_patch
+
+def greycoprops_limits(props, levels=256):
+
+    output = np.empty( (len(props), 2), dtype=np.float64 )
+    
+    already_normed = Props.get_list(
+        [Props.HOMOGENEITY, Props.ENERGY, Props.ASM]
+    )
+    
+    for pp, prop in enumerate(props):
+
+       # already normalized properties
+        if prop in already_normed:
+           output[pp, :] = [0, 1]
+        elif prop in Props.get_list([Props.CONTRAST]):
+            output[pp, :] = [0, (levels-1)**2 ]
+        elif prop in Props.get_list([Props.DISSIMILARITY]):
+            output[pp, :] = [0, (levels-1) ]
+        elif prop in Props.get_list([Props.CORRELATION]):
+            output[pp, :] = [-1, 1]
+
+    return output
+
