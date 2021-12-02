@@ -190,5 +190,30 @@ def combine_props_2by2():
         symmetric, levels, rescale_factor, plot, save, exec_nlmlbp
     )
 
-combine_props_2by2()
+def single_test():
+    img_in_path = 'image-database/HW_C001_120.jpg'
+    test_category = 1000
+    test_number = 5000
+    
+    plot = True
+    save = False
+    exec_nlmlbp = False
+    rescale_factor = 1.
+    
+    sigma = 25
+    props = Props.all()
+    distances = [ 10 ]
+    angles = [ 0 ]
+    window_radius = 10
+    patch_radius = 6
+    symmetric = False
+    levels = 256
+
+    teste2(img_in_path, test_category, test_number, sigma,
+        props, distances, angles, window_radius, patch_radius,
+        symmetric, levels, rescale_factor, plot, save, exec_nlmlbp
+    )
+
+#combine_props_2by2()
 #synthetic_image()
+single_test()
