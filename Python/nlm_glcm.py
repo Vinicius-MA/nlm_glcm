@@ -110,33 +110,19 @@ def nlm_glcm_filter(im_in, window_radius, patch_radius, sigma,
     output = np.empty( (m,n), dtype=np.uint8 )
 
     # get NLM smoothness parameter
-    h = sigma*sigma
-
-    cur_iter = 0
-
-    # get patch array from cur_slice
-    t0 = time.time()            
-    im_patch = ut.image2patch(im_in, im_pad, patch_radius)
-    dif0 = time.time() - t0
-            
-    # get GLCM array from patch array (critical RAM point)
-    t0 = time.time()
-    d_patch = patch2glcm(im_patch, m, n, levels, distances, angles, props, symmetric, eps )
-    dif1 = time.time() - t0
-
-    # process current slice and store it to the slice_out array
-    t0 = time.time()            
-    output = process( im_in, im_pad, d_patch, kernel,
-        window_radius, patch_radius, h, eps, distances, angles, levels
-    )
-    dif2 = time.time() - t0
-
-    return output
+    h_nlm = sigma*sigma
+    h_glcm = h_nlm/(255*255)
+    # get patch array from image
+    im_patch = ut.image2patch( im_in, im_pad, patch_radius )
+    # get GLCM array from patch array (calculates all glcm of all patches before calling process)
+    d_patch = patch2glcm( im_in, im_patch, levels, distances, angles, props, symmetric, eps )
+    # execute filtering loop
+    f_hat = process( im_in, im_pad, d_patch, kernel,
+        window_radius, patch_radius, h_nlm, h_glcm )
+    return f_hat
 
 @njit(nogil=True, parallel=True)
-def process( im_in, im_pad, d_patch, kernel, window_radius, 
-     patch_radius, h, eps, distances, angles, levels 
-    ):
+def process( im_in, im_pad, d_patch, kernel, window_radius, patch_radius, h_nlm, h_glcm ):
 
     y, x = im_in.shape
     
@@ -202,10 +188,7 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
                     ]
                     
                     #Calculate NLM distance weight
-                    diff = np.subtract(w1,w2)
-                    d = ut.calc_distance(kernel,diff)
-                    w = ut.calc_weight(d,h)        
-                    intensity_weights[index_element] = w 
+                    w_i[index_element] = ut.calc_weight( d_i, h_nlm )
                     center_patches[index_element] = im_pad[r,s]
                     
                     # GLCM and descriptors for patch comparison
@@ -214,23 +197,7 @@ def process( im_in, im_pad, d_patch, kernel, window_radius,
                     # Calculate GLCM distance weight
                     diff_glcm = 255*np.subtract(d1, d2)
                     d_glcm = np.sum( diff_glcm * diff_glcm)
-                    w_glcm = ut.calc_weight( d_glcm, h )
-                                        
-                    similarity_weights[index_element] = w_glcm
-                    index_element = index_element + 1
-         
-            # NLM max central pixel
-            wmax = np.max(intensity_weights)
-            
-            #Modulated weights - [Kellah - Eq.3]
-            modulated_weights = intensity_weights * similarity_weights
-            average = (
-                np.sum( modulated_weights * center_patches) +
-                wmax * im_pad[offset_y,offset_x]
-            )            
-            sweight = np.sum(modulated_weights) + wmax
-            if (sweight > 0):                
-                output[i,j] = average / sweight
+                    w_glcm[index_element] = ut.calc_weight( d_glcm, h_glcm )
             else:
                 output[i,j] = im_in[i,j]
     
