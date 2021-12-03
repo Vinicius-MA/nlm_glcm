@@ -177,7 +177,7 @@ class BaseImage:
             workbook.create_sheet( curr_sheet_name )
             curr_sheet = workbook[curr_sheet_name]
             # Fullfill PSNR and SSIM values
-            curr_sheet.append( "PSNR [dB]" )
+            curr_sheet.append( ["PSNR [dB]"] )
             curr_sheet.append( SPREADSHEET_HEADER)
             for row in range( self.samples ):
                 # declare current image as noisy image and calculates current psnr
@@ -308,14 +308,13 @@ class BaseImage:
             for (k, sigma ) in enumerate( self.sigma_list ):
                 
                 full_path = in_folder + _get_sample_filename(
-                    f"{self.filename}.{self.in_ext}", sigma, sample, filter_name
+                    f"{self.filename}.{self.out_ext}", sigma, sample, filter_name
                 )
 
                 if not exists( full_path ):
-                    print( f"\tskipping {full_path}!")
-                    continue
-                
-                images[ k, 0, :, :] = _imread( full_path )
+                    print( f"\tskipping {full_path}...")
+                else:
+                    images[ k, 0, :, :] = _imread( full_path )
 
             sample=0
 
@@ -330,10 +329,13 @@ class BaseImage:
             slices = np.zeros([ len(self.sigma_list), dy, dx ], dtype=np.uint8 )
 
         for ( k, sigma ) in enumerate( self.sigma_list ):
-            
+            # original slice
             if ( filter_name == ORIGINAL ):
                 slices[ 0, :, :] = images[0, 0, y0:y0+dy, x0 : x0+dx]
-            else:
+            # skip empty filter images
+            elif True not in ( images[k, sample, :, :] > 0 ):
+                continue
+            else :
                 slices[ k, :, : ] = images[ k, sample, y0: y0+dy , x0 : x0+dx ]
             
             fname = _get_slice_filename(
