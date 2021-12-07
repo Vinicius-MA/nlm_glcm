@@ -33,8 +33,7 @@ FILTERS_IN_PYTHON = 2
 DISCONSIDER_IN_OUT = 2
 OUT_FNAMES = [
     ORIGINAL,
-    NOISY_OUT_FNAME, BM3D_OUT_FNAME, DA3D_OUT_FNAME, DDID_OUT_FNAME,
-    NLDD_OUT_FNAME, NLM_OUT_FNAME, NLM_LBP_OUT_FNAME, NLM_GLCM_OUT_FNAME
+    NOISY_OUT_FNAME, NLM_OUT_FNAME, NLM_LBP_OUT_FNAME, NLM_GLCM_OUT_FNAME
 ]
 
 TERMINAL_OUT_CREATED_FILE = "created"
@@ -224,11 +223,11 @@ class BaseImage:
             curr_sheet.append([""])
             curr_sheet.append(["SSIM"])
             curr_sheet.append( SPREADSHEET_HEADER )
-            for row in range( self.samples ):            
+            for row in range( self.samples ):
                 # sample number and noisy psnr to current row
                 curr_image = self.noisy_images[k, row, :, :]
                 curr_ssim = ssim( self.im_original, curr_image, data_range= np.amax(curr_image)-np.amin(curr_image) )
-                
+
                 curr_row = [ row+1, curr_ssim]
 
                 print( f"\tNoisy image:\t\t\t\t\t\t\tpsnr: {self.noisy_psnr[k, row]:#.04f}\tssim: {curr_ssim:#.04f}")
@@ -268,7 +267,7 @@ class BaseImage:
                 # appending current row to current sheet
                 curr_sheet.append( curr_row )
             # saving workbook to file
-            outname = f'{sheet_folder}{fname}.ods'
+            outname = f'{sheet_folder}{fname}.xlsx'
             workbook.save( outname )
         # print out
         print( f"\tfile saved: {outname}")
