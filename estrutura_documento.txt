@@ -86,42 +86,42 @@ ELEMENTOS PÓS-TEXTUAIS:
 		
 		
 (MARCELO)
-- Embasamento teorica
-	1. Aquisição de imagem digital
-	2. Degradação e restauração
-		2.1. modelos de degradação
-		2.2. restauração
-		2.3. métricas de avaliação
+1. INTRODUÇÃO
+	1.1. Justificativa
+	2.1. Objetivos
+2. EMBASAMENTO TEÓRICO 
+	2.1. Aquisição de imagem digital
+	2.2. Degradação e restauração
+		> modelos de degradação/restauração
+		2.2.1. modelos de ruído
+			> sistemático, aleatório (não pode subtrair)
+		2.2.2. restauração apenas por ruído
+			> h é desprezível
+			2.2.2.1. Filtro da média
+			2.2.2.2. Non Local Means (NLM)
+		2.2.3. métricas de avaliação
 			> full IQA: (PSNR, SSIM) (f, f^)
 			> melhoria
 			> t student ?
-	3. Restauração do ruído
-		3.1. degradação apenas pelo ruído
-		> h é desprezível
-		3.2. modelos de ruído
-			> sistemático aleatório (não pode subtrair)
-		3.3. métodos de fitlragem de ruído
-			> Média local
-			> NLM
-	4. descritores de textura
-		4.1.
-			> o que é um descritor?
-			> o que é textura?
-		4.2. descritores de textura
-			4.2.1. GLCM
-			4.2.2. LBP
-	5. Filtragem de ruído utilizando descritores de textura
+	2.3. descritores de textura
+		> o que é um descritor?
+		> o que é textura?
+		> o que são descritores de textura?
+		2.3.1. GLCM
+		2.3.2. LBP
+	2.4. Filtragem de ruído utilizando descritores de textura
 		5.1 NLM-LBP
 		5.2 SIBIGRAPI
-- Materiais e Métodos
+3. MATERIAIS E MÉTODOS
 	* mover detalhes de implementação para resultados
-	1. banco de imagens
-	2. recursos computacionais
-	2.1. hardware
-	2.2. matlab
-	2.3. phyton
-	3. método proposto
-	3.1. GLCM + NLM
+	3.1. banco de imagens
+	3.2. recursos computacionais
+		3.2.1. hardware
+		3.2.2. matlab
+		3.2.3. phyton
+	3.3. método proposto: NLM+GLCM	
+4 RESULTADOS E DISCUSSÃO
+	> colocar desvio padrão (intervalo de confiança)
+5 CONCLUSÃO
+REFERÊNCIAS
 	
-- Resultados
-	- colocar desvio padrão (intervalo de confiança)
