@@ -1,4 +1,5 @@
-ELEMENTOS PRÉ-TEXTUAIS:
+
+PRÉ-TEXTUAIS:
 	> CAPA (Definir Título do Projeto)
 		- Título:
 	> EERRATA (Remover)
@@ -14,114 +15,57 @@ ELEMENTOS PRÉ-TEXTUAIS:
 	> LISTA DE ABRAVIATURAS E SIGLAS (Escrever)
 	> LISTA DE SÍMBOLOS (Escvrever)
 	> SUMÁRIO (OK)
-TCC:
-	> INTRODUÇÃO (Revisar)
-		> JUSTIFICATIVA (Resscrever)
-		> Objetivos (Revisar)
-	 > EMBASAMENTO TEÓRICO
-	 	> Aquisição de imagens Digitais (revisar)
-		 	> Modelagem Matemática (revisar)
-		 	> Eletrônica (remover?)
-		 	> Conversor A/D (remover?)
-		 	> Digitalização (revisar)
-	 	> Textura e Descritores de Textura em Imagens (revisar)
-	 		> LBP (revisar)
- 			> LMP (remover?)
- 			> GLCM (revisar)
- 				* Os nomes das propriedades diferem do artigo original (utilizado conforme biblioteca scikit-image)
-		> Degradação e Restauração (revisar)
-		   ? inverter ordem com Textura?
-			> Modelagem de Ruído (revisar)
-				> Ruído AWGN (revisar)
-				> PSF (remover?)
-		> Filtros de Ruídos
-			> Wiener (remover?)
-			> Bilateral ( mover para subseção do DDID? )
-			> NLM (revisar)
-				> Fast NLM (rescrever)
-			> NLDD (revisar)
-			> Wavelet ( mover para DDID?)
-			> DA3D (revisar)
-			> BM3D (revisar)
-				> Block-matching (revisar)
-				> Collaborative Filtering ... (revisar)
-			> NLM-LBP (revisar título, revisar)
-				> NLM (escrever; já explicado antes)
-				> LBP (escrever; já explicado antes)
-				> Método proposto
-				   (revisar título; revisar)
- 			> Combinações de Filtros de Ruído e Descritores...
- 				> NLM-LBP movido p/ "Filtros"
-			> Métricas de avaliação (revisar)
-				> PSNR (revisar)
-				> SSIM (revisar)
-				> Teste t de Student (escrever)
-	> MATERIAIS E MÉTODOS (revisar)
-		> Banco de Imagens (revisar)
-		> Recusros Computacionais (revisar)
-			> MATLAB (revisar)
-			> Python (revisar)
-		> Avaliação de métodos da literatura (revisar)
-			> DA3D - implementação (revisar)
-			> NLM - implementação (revisar)
-			> NLM-LBP - implementação (revisar)
-		> Método Proposto (revisar título; revisar)
-	> RESULTADOS E DISCUSSÃO
-		> Imagens Obtidas (REVISAR**)
-			* Colocar valores de SSIM nas imagens
-			? Mover imagens para Apêndice?
-		> Comparação de PSNR e SSIM (REVISAR**)
-			? Tabelas de improvement: dB ou % ?
-			* Revisar critério de "melhores" das tabelas
-		> Comparação entre filtros de médio não local (REVISAR**)
-			> Teste t de Student (ESCREVER**)
-			> Temporização (revisar)
-	> CONCLUSÃO (ESCREVER**)
+1. INTRODUÇÃO
+	1.1. Justificativa (Resscrever)
+	2.1. Objetivos (Revisar)
+2. EMBASAMENTO TEÓRICO  (revisar tudo)
+	2.1. Aquisição de imagem digital (revisar melhor)
+		2.1.1. Digitalização
+	2.2. Degradação e Restauração de Imagens (revisar tudo)
+		> modelos de degradação/restauração
+		2.2.1. modelos de ruído
+			> sistemático, aleatório (não pode subtrair)
+			2.2.1.1. Ruído AWGN
+		2.2.2. Restauração na Presença Somente de Ruído
+			> h é desprezível
+			2.2.2.1. Filtro da Média Local
+			2.2.2.2. Non-Local Means (NLM)
+		2.2.3. Métricas de Avaliação
+			2.2.3.1. FR-IQA
+				2.2.3.1.1. PSNR
+					> delta PSNR
+				2.2.3.1.2. SSIM
+					> MSSIM
+					> delta MSSIM
+			2.2.3.2. Teste t de Welch
+		2.2.4. PSF (remover?)
+	2.3. Descritores de Textura em Imagens (revisar)
+		> o que é um descritor?
+		> o que é textura?
+		> o que são descritores de textura?
+		2.3.1. LBP
+		2.3.2. GLCM
+			* nomenclatura/definiçao diferentes do artigo original
+	2.4. Combinações de Filtros de Ruído e Descritores de Textura (revisar)
+		2.4.1. NLM-LBP Imagens
+			> L_k definição ok?
+		2.4.2. NLM-LBP Vídeo (remover?)
+3. MATERIAIS E MÉTODOS
+	3.1. banco de imagens (revisar)
+	3.2. recursos computacionais
+		3.2.1. Hardware e Sistema Operacional (escrever)
+		3.2.2. Phyton (revisar)
+	3.3. Método Proposto: NLM+GLCM (revisar)	
+4 RESULTADOS E DISCUSSÃO (reescrever)
+	> colocar novas imagens, sem as dos filtros não usados
+	> análise/ comparação de imagens/tabelas
+	4.1. teste de Welch
+	4.2. Teste de temporização
+5 CONCLUSÃO (escrever)
 ELEMENTOS PÓS-TEXTUAIS:
 	> REFERÊNCIAS (OK)
 	> APÊNDICES (Algum?)
 		> Apêndice A (remover)
 	> ANEXOS (Algum?)
 		> Anexo A (remover)
-		
-		
-(MARCELO)
-1. INTRODUÇÃO
-	1.1. Justificativa
-	2.1. Objetivos
-2. EMBASAMENTO TEÓRICO 
-	2.1. Aquisição de imagem digital
-	2.2. Degradação e restauração
-		> modelos de degradação/restauração
-		2.2.1. modelos de ruído
-			> sistemático, aleatório (não pode subtrair)
-		2.2.2. restauração apenas por ruído
-			> h é desprezível
-			2.2.2.1. Filtro da média
-			2.2.2.2. Non Local Means (NLM)
-		2.2.3. métricas de avaliação
-			> full IQA: (PSNR, SSIM) (f, f^)
-			> melhoria
-			> t student ?
-	2.3. descritores de textura
-		> o que é um descritor?
-		> o que é textura?
-		> o que são descritores de textura?
-		2.3.1. GLCM
-		2.3.2. LBP
-	2.4. Filtragem de ruído utilizando descritores de textura
-		5.1 NLM-LBP
-		5.2 SIBIGRAPI
-3. MATERIAIS E MÉTODOS
-	* mover detalhes de implementação para resultados
-	3.1. banco de imagens
-	3.2. recursos computacionais
-		3.2.1. hardware
-		3.2.2. matlab
-		3.2.3. phyton
-	3.3. método proposto: NLM+GLCM	
-4 RESULTADOS E DISCUSSÃO
-	> colocar desvio padrão (intervalo de confiança)
-5 CONCLUSÃO
-REFERÊNCIAS
 	
