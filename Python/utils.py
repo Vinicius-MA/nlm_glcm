@@ -25,9 +25,8 @@ def chisquare_distance(A, B, eps):
     return np.sum( (A-B)**2 / (A+B+eps) )
 
 @njit()
-def euclidian_distance(A, B, eps=1e-07):
-    diff = np.subtract(A, B)
-    return np.sqrt( np.sum( diff*diff ) )
+def euclidian_distance(A, B, eps):
+    return np.sum( np.sqrt( (A - B)**2 ) )
 
 def calculate_psnr(img1, img2, max_value=255):
     """"Calculating peak signal-to-noise ratio (PSNR) between two images."""
