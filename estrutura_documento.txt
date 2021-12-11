@@ -53,12 +53,15 @@ PRÉ-TEXTUAIS:
 3. MATERIAIS E MÉTODOS
 	3.1. banco de imagens (revisar)
 	3.2. recursos computacionais
-		3.2.1. Hardware e Sistema Operacional (escrever)
+		3.2.1. Hardware e Sistema Operacional (revisar)
 		3.2.2. Phyton (revisar)
-	3.3. Método Proposto: NLM+GLCM (revisar)	
+	3.3. Método Proposto: NLM+GLCM (revisar)
+		? Como escrever notação da distância euclidiana sem kernel?
 4 RESULTADOS E DISCUSSÃO (reescrever)
-	> colocar novas imagens, sem as dos filtros não usados
 	> análise/ comparação de imagens/tabelas
+	? Como explicitar que os intervalos das tabelas são os intervalos de confiança?
+	> inserir psnr/mssim das imagens
+	? Tabelas: pode colocar 20,17 +/- 0,00 ??
 	4.1. teste de Welch
 	4.2. Teste de temporização
 5 CONCLUSÃO (escrever)
@@ -68,4 +71,12 @@ ELEMENTOS PÓS-TEXTUAIS:
 		> Apêndice A (remover)
 	> ANEXOS (Algum?)
 		> Anexo A (remover)
-	
+		
+		
+intervalo de confiança: 
+	tabulação sumário
+	correções em vermelho
+	psnr e mssim das imagens
+	0,6647±0,0004 --> 0,6647 [0,6643 0,6651]
+	título da tabela "e intervalo de confiança..."
+	testes preliminares resultaram nos parâmetros ...
