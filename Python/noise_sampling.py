@@ -276,7 +276,7 @@ class BaseImage:
 
         self.filename = newfilename
 
-    def _generate_filter_slices(self, out_folder="", filter_name=NLM_GLCM_OUT_FNAME, 
+    def _generate_filter_slices(self, out_folder="", filter_name=NLM_GLCM_OUT_FNAME,
          origin=(0,0), shape=(150,150), start_str="detail", sample=0, in_folder=""
         ):
         """ Execute after filtering is done """
@@ -305,7 +305,7 @@ class BaseImage:
             )
 
             for (k, sigma ) in enumerate( self.sigma_list ):
-                
+
                 full_path = in_folder + _get_sample_filename(
                     f"{self.filename}.{self.out_ext}", sigma, sample, filter_name
                 )
@@ -338,7 +338,7 @@ class BaseImage:
                 slices[ k, :, : ] = images[ k, sample, y0: y0+dy , x0 : x0+dx ]
             
             fname = _get_slice_filename(
-                f"{self.filename}.{self.out_ext}",sigma, sample, start_str, filter_name
+                f"{self.filename}.png",sigma, sample, start_str, filter_name
             )
 
             # skip if slice already exists
