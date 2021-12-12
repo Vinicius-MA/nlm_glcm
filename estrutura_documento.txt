@@ -1,8 +1,7 @@
 
 PRÉ-TEXTUAIS:
 	> CAPA (Definir Título do Projeto)
-		- Título:
-	> EERRATA (Remover)
+	> ERRATA (Remover)
 	> FOLHA DE APROVAÇÃO (Remover)
 	> DEDICATÓRIA (Revisar)
 	> AGRADECIMENTOS (Revisar)
@@ -12,8 +11,8 @@ PRÉ-TEXTUAIS:
 	> LISTA DE FIGURAS (OK)
 	> LISTA DE TABELAS (OK)
 	> LISTA DE QUADROS (Remover)
-	> LISTA DE ABRAVIATURAS E SIGLAS (Escrever)
-	> LISTA DE SÍMBOLOS (Escvrever)
+	> LISTA DE ABREVIATURAS E SIGLAS (Escrever)
+	> LISTA DE SÍMBOLOS (Escrever)
 	> SUMÁRIO (OK)
 1. INTRODUÇÃO (revisar)
 	1.1. Justificativa (revisar)
@@ -45,7 +44,7 @@ PRÉ-TEXTUAIS:
 		> o que são descritores de textura?
 		2.3.1. LBP
 		2.3.2. GLCM
-			* nomenclatura/definiçao diferentes do artigo original
+			* nomenclatura/definição diferentes do artigo original
 	2.4. Combinações de Filtros de Ruído e Descritores de Textura (revisar)
 		2.4.1. NLM-LBP Imagens
 			> L_k definição ok?
@@ -54,7 +53,7 @@ PRÉ-TEXTUAIS:
 	3.1. banco de imagens (revisar)
 	3.2. recursos computacionais
 		3.2.1. Hardware e Sistema Operacional (revisar)
-		3.2.2. Phyton (revisar)
+		3.2.2. Python (revisar)
 	3.3. Método Proposto: NLM+GLCM (revisar)
 		? Como escrever notação da distância euclidiana sem kernel?
 4 RESULTADOS E DISCUSSÃO (reescrever)
@@ -76,7 +75,5 @@ ELEMENTOS PÓS-TEXTUAIS:
 intervalo de confiança: 
 	tabulação sumário
 	correções em vermelho
-	psnr e mssim das imagens
-	0,6647±0,0004 --> 0,6647 [0,6643 0,6651]
 	título da tabela "e intervalo de confiança..."
 	testes preliminares resultaram nos parâmetros ...
